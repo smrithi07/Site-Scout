@@ -1,6 +1,6 @@
 from app.models.base import Base
 from app.models.osm import CellFeature, MlBuilding, OsmBuilding, OsmLanduse, OsmPoi, RoadSegment
-from app.models.platform import AuditEvent, ConfigVersion, Job, JobStep, User
+from app.models.platform import AuditEvent, ConfigVersion, Job, JobStep, LlmCall, User
 from app.models.reference import (
     DataSnapshot,
     DataSource,
@@ -17,6 +17,6 @@ from app.models.reports import AreaReport
 
 __all__ = [
     "AreaReport", "AuditEvent", "Base", "CellFeature", "ConfigVersion", "DataSnapshot", "DataSource",
-    "H3Cell", "Job", "JobStep", "Locality", "MlBuilding", "OsmBuilding", "OsmLanduse", "OsmPoi", "Pincode",
+    "H3Cell", "Job", "JobStep", "LlmCall", "Locality", "MlBuilding", "OsmBuilding", "OsmLanduse", "OsmPoi", "Pincode",
     "PostOffice", "RoadSegment", "ServiceArea", "Store", "User", "Ward", "Zone",
 ]

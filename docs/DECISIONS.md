@@ -330,6 +330,46 @@ compare with the template narrative; **4b** = LLM adapters, validator, fallback 
   confidence: strong anchors (89) and demand (68), weak competition (16). Tondiarpet zone 51.7:
   close to existing Savomart stores (cannibalisation 10) with sparse OSM anchors.
 
+## Phase 4b decisions (LLM narrative)
+
+The user asked for careful use of API calls, with fallbacks and retries.
+
+- **Providers**: Gemini `gemini-3.1-flash-lite` (primary), Groq `openai/gpt-oss-120b` (fallback),
+  from `.env`. Both checked first via their free model-listing endpoints (no generation quota).
+  Plain `httpx` against the REST APIs, not the vendor SDKs: one dependency, same error handling
+  for both, easy to fake in tests.
+- **Spend protection** (config `llm:`):
+  - *Cache*: a validated response is reused for the same fact sheet + provider + model + prompt
+    version; re-running an unchanged area costs nothing. Cached answers are re-validated before use.
+  - *Retries*: at most 1 retry per provider, only for transient errors (timeouts, connection
+    errors, 408/409/425/429/5xx), with exponential backoff + jitter; `Retry-After` (and Google's
+    `retryDelay`) honoured. If the wait would exceed the remaining time budget, skip to the next
+    provider rather than sleep.
+  - *Permanent errors* (400/401/403/404, blocked prompt): no retry, next provider immediately.
+  - *Invalid output* (bad JSON or validator rejection): 1 retry on the same provider with the
+    validator's reasons included in the prompt, then next provider.
+  - *Circuit breaker*: 3 straight failures → provider skipped for 5 min. *Spacing*: ≥ 4s between
+    Gemini calls, ≥ 2s for Groq. *Total budget*: 90s for the whole chain, then template.
+  - Breaker and spacing are per process (one worker). Several workers would need them in Postgres.
+- **Validator**: every number in the text must equal a fact-sheet number or be a rounding of one
+  (65.8 → 66 ok; 72.3 rejected), plus the 0/100 scale; a rating label must be the sheet's; known
+  places/stores (zones, Savomart stores, in-area locality names, minus generic single words)
+  mentioned in the text must appear in the sheet. The `validate` job step re-checks the final
+  narrative independently and substitutes the template if it ever fails.
+- **Caveats are code-owned**: the model writes summary/why/where-to-scout only; caveats (lower-bound
+  competition, proxy demand, approximate boundary, masked cells) are always appended by code.
+- **Every call is logged** in `llm_calls` (status ok/invalid/error/cached, HTTP status, latency,
+  tokens, validator errors), committed outside the job step so a crash never loses a paid-for
+  answer. Reports record `narrative_source` + model, cached flag and the full attempt list.
+- **Tests never spend quota**: an autouse fixture makes every test template-only unless it passes
+  fake providers (real adapters over `httpx.MockTransport`). Live checks: `make llm-smoke`.
+- **Measured live**: Gemini returned 503 "high demand" on 2 of 3 first attempts; each time one
+  retry succeeded (~9s). Groq succeeded first try (~5s). ~1.3–1.4k input / ~340 output tokens
+  per narrative. Re-run of an unchanged area: served from cache, 0 calls.
+- **Ops gotcha (hit twice now)**: containers read `.env` only at creation; `docker compose
+  restart` keeps stale values, so the worker ran with no keys and silently used the template.
+  Fixes: `make reload-env`, and the attempt log now states "no LLM provider configured".
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality
@@ -342,7 +382,7 @@ compare with the template narrative; **4b** = LLM adapters, validator, fallback 
 3. ~~**Docker Desktop status on the user's Mac**~~ — **closed in Phase 0c** (installed, running). Was: last confirmed as "not installed" during Phase
    0a. Must be verified again before Phase 0c (Docker Compose scaffold) can proceed —
    `docker run --rm hello-world` was the agreed checkpoint and was never confirmed as run.
-4. **Gemini/Groq API keys**: not yet created as of handoff. Needed before Phase 4 (M1 backend,
+4. ~~**Gemini/Groq API keys**~~ — **closed in Phase 4b** (both configured and verified). Was: not yet created as of handoff. Needed before Phase 4 (M1 backend,
    which wires up the LLM adapter) can be checkpointed end-to-end.
 5. ~~**11th Chennai store's `store_code`**~~ — **closed in Phase 1** (captured by the ingest).
 6. ~~**Demand proxy where OSM buildings are unmapped**~~ — **closed**: Microsoft ML buildings

@@ -73,7 +73,7 @@ def gather_facts(db: Session, snapshot_id: int, cells: list[str]) -> dict:
 
 def save_report(db: Session, *, resolved: dict, area: dict, hotspots: list[dict], facts: dict,
                 fact_sheet: dict, narrative: dict, narrative_source: str, job_id: int | None,
-                actor: User | None) -> AreaReport:
+                actor: User | None, narrative_meta: dict | None = None) -> AreaReport:
     """Insert the next version for this area. The advisory lock serialises concurrent saves of the
     same area so two runs can't both become 'v2'."""
     db.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), dict(k=resolved["area_key"]))
@@ -84,7 +84,8 @@ def save_report(db: Session, *, resolved: dict, area: dict, hotspots: list[dict]
         snapshot_id=area["snapshot_id"], config_version=area["config_version"], status=area["status"],
         score=area["score"], rating=area["rating"], confidence=area["confidence"],
         result={"area": {k: v for k, v in area.items() if k != "cell_scores"}, "cell_scores": area["cell_scores"],
-                "hotspots": hotspots, "facts": facts, "fact_sheet": fact_sheet},
+                "hotspots": hotspots, "facts": facts, "fact_sheet": fact_sheet,
+                "narrative_meta": narrative_meta or {}},
         narrative=narrative, narrative_source=narrative_source, job_id=job_id,
         created_by=actor.id if actor else None, select_cells=resolved["select_cells"],
         geom=text("(SELECT ST_Multi(ST_Union(geom)) FROM h3_cells WHERE snapshot_id = :s AND h3 = ANY(:cells))")

@@ -1,6 +1,6 @@
 # Savo SiteScout config. Every snapshot records `version`. Bump it on ANY change below.
 # Weights/thresholds/radii/freshness/caps are filled in as each phase needs them (see docs/DESIGN.md).
-version: "0.6.0"
+version: "0.7.0"
 
 region:
   name: Greater Chennai Corporation
@@ -71,6 +71,22 @@ jobs:
   heartbeat_seconds: 5         # a running job's heartbeat interval
   stale_after_seconds: 30      # no heartbeat for this long → worker presumed dead → job re-queued
   max_attempts: 3              # re-queues after lost heartbeats before the job is failed for good
+
+llm:
+  # The LLM only phrases the fact sheet (Core rule 7). Provider order comes from .env
+  # (LLM_PROVIDER, LLM_FALLBACK_PROVIDER); the template is always the last resort.
+  prompt_version: "area-narrative-v1"   # bump when the prompt changes (it's part of the cache key)
+  cache: true                  # same fact sheet + provider + model + prompt → reuse, no API call
+  temperature: 0.2
+  max_output_tokens: 1200
+  connect_timeout_s: 5
+  read_timeout_s: 40
+  attempts_per_provider: 2     # 1 try + 1 retry, for transient errors and invalid output
+  backoff_base_s: 1.0          # 1s, then 2s… (+ jitter) between retries
+  backoff_max_s: 8
+  total_budget_s: 90           # whole chain; past this → template
+  min_interval_s: {gemini: 4.0, groq: 2.0}   # client-side spacing between calls (free-tier friendly)
+  circuit_breaker: {failures: 3, cooldown_s: 300}   # skip a provider after 3 straight failures
 
 selection:
   # Counted in score cells (res 9, ~0.1 km² each). Floor ≈ one selection cell; cap ≈ 60 km².

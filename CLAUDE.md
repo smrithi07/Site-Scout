@@ -121,8 +121,8 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–4a are done;
-  **Phase 4b** (LLM narrative) is next.
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–4b are done;
+  **Phase 5** (frontend shell + M1 UI) is next.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -161,4 +161,10 @@ frontend to hide a field.
   hotspots), `services/area_report.py` (facts, save, compare), `llm/factsheet.py` +
   `llm/template.py`, `area_report` job, immutable `area_reports` (trigger; test cleanup uses
   `SET LOCAL sitescout.purge = 'on'`), `/areas/*` endpoints (BD Manager).
-- **Next step: Phase 4b** — Gemini/Groq adapters, validator, fallback chain. Needs LLM keys.
+- Phase 4b done: `app/llm/` — `gemini.py`/`groq.py` adapters (error → retryable or not),
+  `validator.py` (numbers trace to the sheet, rating label, stray places), `adapter.py` chain
+  (cache → provider retries with backoff/Retry-After → next provider → template; circuit breaker,
+  call spacing, total time budget), `calls.py` (`llm_calls` log + cache), code-owned caveats.
+  Tests never call real APIs (conftest autouse fixture). After editing `.env`: `make reload-env`.
+- **Next step: Phase 5** — frontend shell + M1 UI (role switcher, map, selection modes, job
+  progress, report view, save/compare).

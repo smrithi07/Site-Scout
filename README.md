@@ -13,6 +13,7 @@ make up                # postgis, api, worker, web
 make migrate           # create/upgrade the schema
 make ingest            # build a data snapshot from data/raw (offline)
 make health            # {"status":"ok", ...}
+make reload-env        # after editing .env (containers only read it when created)
 ```
 
 - Web: http://localhost:5173

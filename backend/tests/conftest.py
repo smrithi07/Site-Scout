@@ -12,6 +12,15 @@ def headers(role: Role) -> dict:
     return {"Authorization": f"Bearer {token_for(USER_IDS[role])}"}
 
 
+@pytest.fixture(autouse=True)
+def no_real_llm_calls(monkeypatch):
+    """The suite must never spend API quota: jobs run template-only unless a test passes its own
+    fake providers to `adapter.narrate`. Fresh circuit-breaker state per test."""
+    from app.llm import adapter
+    monkeypatch.setattr(adapter, "configured_providers", lambda: ())
+    monkeypatch.setattr(adapter, "guards", adapter._Guards())
+
+
 @pytest.fixture(scope="session")
 def client():
     with TestClient(app) as c:  # runs lifespan → config registration, like production

@@ -72,6 +72,32 @@ class Job(Base):
     version: Mapped[int] = mapped_column(Integer, server_default="1")   # optimistic lock
 
 
+class LlmCall(Base):
+    """Every LLM request, successful or not: the cache (a validated response for the same fact
+    sheet + provider + model + prompt version is reused), and the record of how often each model
+    fails or gets rejected by the validator (docs/DESIGN.md §9)."""
+    __tablename__ = "llm_calls"
+    __table_args__ = (Index("ix_llm_calls_cache", "purpose", "sheet_sha256", "provider", "model", "prompt_version"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    purpose: Mapped[str] = mapped_column(String(32))            # area_narrative, …
+    provider: Mapped[str] = mapped_column(String(16))
+    model: Mapped[str] = mapped_column(String(64))
+    prompt_version: Mapped[str] = mapped_column(String(32))
+    sheet_sha256: Mapped[str] = mapped_column(String(64))
+    attempt: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(16))             # ok | invalid | error | cached
+    http_status: Mapped[int | None] = mapped_column(Integer)
+    error: Mapped[str | None] = mapped_column(Text)
+    latency_ms: Mapped[int | None] = mapped_column(Integer)
+    input_tokens: Mapped[int | None] = mapped_column(Integer)
+    output_tokens: Mapped[int | None] = mapped_column(Integer)
+    response: Mapped[dict | None] = mapped_column(JSONB)       # parsed output (ok/invalid)
+    validation_errors: Mapped[list | None] = mapped_column(JSONB)
+    job_id: Mapped[int | None] = mapped_column(BigInteger)      # no FK: the log outlives jobs
+
+
 class JobStep(Base):
     __tablename__ = "job_steps"
 
