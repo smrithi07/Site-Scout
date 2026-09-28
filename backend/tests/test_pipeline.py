@@ -154,3 +154,14 @@ def test_follow_up_needs_an_executive_to_answer_it(client):
     r = client.post(f"/properties/{p['id']}/follow-ups", headers=BDM,
                     json={"kind": "revisit", "message": "please revisit", "version": p["version"]})
     assert r.status_code == 422
+
+
+def test_manager_gets_the_allowed_next_steps_executive_does_not(client):
+    p = onboard(client)
+    assert p["pipeline"]["moves"] == ["under_review", "rejected", "on_hold"]     # from the service's rules
+    assert p["pipeline"]["follow_up"]["allowed"] is True
+    assert "pipeline" not in client.get(f"/properties/{p['id']}", headers=BDE).json()
+    rejected = move(client, p, "rejected", reason="rent too high").json()
+    assert rejected["pipeline"]["moves"] == ["under_review"]
+    assert rejected["pipeline"]["follow_up"]["allowed"] is False
+    assert client.get(f"/properties/{p['id']}/history", headers=BDM).json()[-1]["actor_name"]

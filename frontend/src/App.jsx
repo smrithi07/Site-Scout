@@ -7,6 +7,7 @@ import ReportPage from './features/areas/ReportPage'
 import ReportsPage from './features/areas/ReportsPage'
 import Home from './features/home/Home'
 import JobPage from './features/jobs/JobPage'
+import BoardPage from './features/pipeline/BoardPage'
 import PropertiesPage from './features/scouting/PropertiesPage'
 import PropertyForm from './features/scouting/PropertyForm'
 import PropertyPage from './features/scouting/PropertyPage'
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="areas/compare/:a/:b" element={guarded(<ComparePage />)} />
         <Route path="jobs/:id" element={guarded(<JobPage />)} />
         <Route path="tasks/:id" element={guarded(<TaskPage />)} />
+        <Route path="pipeline" element={guarded(<BoardPage />)} />
         <Route path="properties" element={guarded(<PropertiesPage />)} />
         <Route path="properties/new" element={guarded(<PropertyForm />)} />
         <Route path="properties/:id" element={guarded(<PropertyPage />)} />

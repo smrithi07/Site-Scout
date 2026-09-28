@@ -1,9 +1,9 @@
-// Properties list: an executive's own, or (BD Manager) everyone's. The manager's pipeline board is 7b.
+// Properties list: an executive's own, or (BD Manager) everyone's as a flat list; the board is /pipeline.
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { api } from '../../api/client'
 import { useAuth } from '../../app/auth'
-import { OUTCOME_STYLE, STAGE_LABEL } from './PropertyPage'
+import { OUTCOME_STYLE, STAGE_LABEL } from './shared'
 
 export default function PropertiesPage() {
   const { user } = useAuth()

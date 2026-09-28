@@ -38,6 +38,21 @@ MANAGER_MOVES = {
 FOLLOW_UP_FROM = {"scouted", "under_review", "shortlisted", "on_hold"}
 
 
+def actions(db: Session, p: Property) -> dict:
+    """What the manager can do next from here — the UI renders exactly this, so the stage rules
+    live only in this module."""
+    if p.status == "merged":
+        return {"moves": [], "follow_up": {"allowed": False, "why": "merged into another property"}}
+    creator = db.get(User, p.created_by)
+    if p.stage not in FOLLOW_UP_FROM | {"needs_follow_up"}:
+        follow_up = {"allowed": False, "why": f"not while {p.stage.replace('_', ' ')}"}
+    elif creator is None or creator.role != Role.BD_EXECUTIVE:
+        follow_up = {"allowed": False, "why": "added by a manager, no executive to ask"}
+    else:
+        follow_up = {"allowed": True, "assignee": creator.name}
+    return {"moves": [s for s in STAGES if s in MANAGER_MOVES[p.stage]], "follow_up": follow_up}
+
+
 def move(db: Session, actor: User, property_id: int, to: str, reason: str, version: int,
          details: dict | None = None) -> Property:
     if actor.role != Role.BD_MANAGER:

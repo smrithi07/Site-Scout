@@ -40,7 +40,7 @@ export default function ScoreBreakdown({ factors, score, missingFraction }) {
                   <div className="mt-1 max-w-xs text-xs opacity-70">{f.note}</div>
                 </td>
                 <td className="py-2 pr-3">
-                  <span className="tabular-nums">{fmt(f.raw, 0)}</span>
+                  <span className="tabular-nums">{typeof f.raw === 'string' ? f.raw : fmt(f.raw, 0)}</span>
                   <div className="text-xs opacity-60">{f.unit}</div>
                   <div className="text-xs opacity-50">{f.source}</div>
                 </td>

@@ -505,6 +505,25 @@ Phase 6 split: **6a** = tasks, save-first properties, validation, duplicates, ph
   and the 7b board need no per-row requests.
 - **Phones**: the header nav gets its own row under the brand + role switcher.
 
+## Phase 7b decisions (BD Manager pipeline UI)
+
+- **The API says what's allowed next.** The manager's property response carries
+  `pipeline: {moves, follow_up: {allowed, why | assignee}}` from `services/pipeline.actions`, so the
+  stage rules exist only in `pipeline.py` and the UI can't offer a move the server would refuse.
+  Executives never receive it.
+- **Moves happen on the review page, not by dragging on the board.** Every move needs a reason, so
+  a drag would have to open the same dialog anyway; the board is for triage (by stage, best-rated
+  first, search + outcome filter, duplicate / missing / no-photo flags; merged entries hidden).
+- **409 handling**: on a stale version the dialog stays open with the reason kept, the property is
+  re-read, and the manager confirms again on current data; if the move is no longer legal from the
+  new stage the confirm button is disabled and says why. Tested with a second-tab move in the browser.
+- **Reason presets** are shortcuts that fill the textarea; the manager can always edit them.
+- **Evaluation versions**: the breakdown shows the latest, with a picker for older versions
+  (fetched on demand) and a Re-evaluate button; older versions are labelled as such, never replaced.
+- **History** shows actor names (joined in the history endpoint), from → to, the reason, and marks
+  the executive-answer return to review as *automatic*.
+- Nav: the manager's "Properties" link became "Pipeline" (`/properties` still lists everything).
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

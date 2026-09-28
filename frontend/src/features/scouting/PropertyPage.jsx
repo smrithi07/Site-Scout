@@ -1,42 +1,23 @@
 // A scouted property after saving: what happened (warnings, duplicate question, evaluation), and
-// what's left to add (photos, notes, follow-up answers). The manager's review tools are Phase 7b.
+// what's left to add (photos, notes, follow-up answers). The BD Manager gets the review page instead.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { api, apiBlob, apiUpload } from '../../api/client'
+import { api, apiUpload } from '../../api/client'
 import { useAuth } from '../../app/auth'
 import MapView from '../../components/MapView'
 import { fmt } from '../../components/ScoreBreakdown'
 import { useMapLayers } from '../areas/AnalysePage'
+import ReviewPage from '../pipeline/ReviewPage'
 import { pinOverlay } from './mapLayers'
-
-export const OUTCOME_STYLE = {
-  'Strong Fit': 'bg-emerald-100 text-emerald-900', Consider: 'bg-sky-100 text-sky-900',
-  'Weak Fit': 'bg-stone-200 text-stone-800', 'Needs Info': 'bg-amber-100 text-amber-900',
-}
-export const STAGE_LABEL = (s) => s.replaceAll('_', ' ')
-
-function Photo({ propertyId, photo }) {
-  const [url, setUrl] = useState(null)
-  useEffect(() => {
-    let alive = true, obj
-    apiBlob(`/properties/${propertyId}/photos/${photo.id}`).then((b) => { obj = URL.createObjectURL(b); if (alive) setUrl(obj) }).catch(() => {})
-    return () => { alive = false; if (obj) URL.revokeObjectURL(obj) }
-  }, [propertyId, photo.id])
-  return url ? <img src={url} alt={photo.filename} className="h-24 w-24 rounded-md object-cover" /> : <div className="h-24 w-24 animate-pulse rounded-md bg-brand/10" />
-}
-
-function Card({ title, children, tone = 'default' }) {
-  const tones = { default: 'border-brand/15 bg-white', warn: 'border-amber-200 bg-amber-50', ok: 'border-emerald-200 bg-emerald-50' }
-  return (
-    <section className={`rounded-lg border p-3 ${tones[tone]}`}>
-      {title && <h2 className="mb-1.5 text-sm font-semibold">{title}</h2>}
-      {children}
-    </section>
-  )
-}
+import { Card, OUTCOME_STYLE, Photo, STAGE_LABEL } from './shared'
 
 export default function PropertyPage() {
+  const { user } = useAuth()
+  return user.role === 'bd_manager' ? <ReviewPage /> : <ExecPropertyPage />
+}
+
+function ExecPropertyPage() {
   const { id } = useParams()
   const [params] = useSearchParams()
   const { user } = useAuth()

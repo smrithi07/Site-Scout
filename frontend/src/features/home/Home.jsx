@@ -3,12 +3,13 @@ import RoleSwitcher from '../../app/RoleSwitcher'
 import { ROLE_LABELS, useAuth } from '../../app/auth'
 import ExecHome from '../scouting/ExecHome'
 
-// What each persona will land on (docs/DESIGN.md §4). Only the BD Manager's M1 tools exist so far.
+// What each persona will land on (docs/DESIGN.md §4). BD roles are built; survey roles arrive with M3.
 const HOMES = {
   bd_manager: {
     title: 'Where should we open next?',
     body: 'Pick an area of Chennai — by pincode, locality or cells on the map — and get an Area Fitness Report with hotspots to scout.',
     cta: { to: '/areas/analyse', label: 'Analyse an area' },
+    secondary: { to: '/pipeline', label: 'Review the pipeline' },
   },
   survey_manager: { title: 'Study requests', body: 'The request inbox and unit planning arrive with M3.' },
   survey_executive: { title: 'My units today', body: 'Lane capture arrives with M3.' },
@@ -38,6 +39,11 @@ export default function Home() {
           className="mt-6 inline-block rounded-md bg-accent px-4 py-2 font-semibold text-ink shadow hover:brightness-95"
         >
           {home.cta.label}
+        </Link>
+      )}
+      {home.secondary && (
+        <Link to={home.secondary.to} className="mt-6 ml-3 inline-block rounded-md px-4 py-2 font-semibold text-brand ring-1 ring-brand/40 hover:bg-white">
+          {home.secondary.label}
         </Link>
       )}
     </div>

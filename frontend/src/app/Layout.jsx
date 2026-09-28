@@ -6,7 +6,7 @@ const NAV = {
   bd_manager: [
     { to: '/areas/analyse', label: 'Analyse area' },
     { to: '/areas/reports', label: 'Reports' },
-    { to: '/properties', label: 'Properties' },
+    { to: '/pipeline', label: 'Pipeline' },
   ],
   bd_executive: [
     { to: '/', label: 'My tasks' },

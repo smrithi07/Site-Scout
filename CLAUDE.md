@@ -121,8 +121,8 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–7a are done (M1
-  complete, M2 backend + executive UI complete); **Phase 7b** (manager M2 UI) is next.
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–7b are done (M1
+  and M2 complete); **Phase 8** (M3 backend) is next.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -194,5 +194,10 @@ frontend to hide a field.
   drafts via `drafts.js`, client_id idempotent submit), `PropertyPage` (evaluation card, duplicate
   resolution, photos via authenticated blob, notes, follow-up answers), `PropertiesPage`.
   `/properties` list returns latest `outcome` + `score`. `api/client.js` has `apiBlob`/`apiUpload`.
-- Next step: **Phase 7b** — manager pipeline board, property review page (card, breakdown, risks,
-  map, photos, notes, history), stage moves with reason + 409 handling, follow-up requests.
+- Phase 7b done: `frontend/src/features/pipeline/` — `BoardPage` (`/pipeline`, by stage, best-rated
+  first), `ReviewPage` (manager's `/properties/:id`: 30-second card, next step, breakdown with
+  version picker + re-evaluate, map, photos, details, notes, history), `Dialogs` (stage move with
+  reason, follow-up request; 409 → re-read, keep the reason, confirm again), `History`. Shared UI in
+  `features/scouting/shared.jsx`. API adds `pipeline` (allowed moves, follow-up) for the manager
+  and `actor_name` in history.
+- **M2 is complete end to end.** Next step: **Phase 8** — M3 (see `docs/PHASES.md`).

@@ -88,6 +88,10 @@ def _full(db: Session, p, user: User) -> dict:
         out["photos"] = [{"id": ph.id, "filename": ph.filename, "content_type": ph.content_type, "bytes": ph.bytes,
                           "created_at": ph.created_at}
                          for ph in db.scalars(select(PropertyPhoto).where(PropertyPhoto.property_id == p.id).order_by(PropertyPhoto.id))]
+        creator = db.get(User, p.created_by)
+        out["created_by_name"] = creator.name if creator else None
+    if user.role == Role.BD_MANAGER:
+        out["pipeline"] = pipeline.actions(db, p)
     return out
 
 
@@ -220,10 +224,11 @@ def respond_follow_up(follow_up_id: int, body: FollowUpResponse, user: User = De
 def property_history(property_id: int, user: User = Depends(bd), db: Session = Depends(get_db)) -> list[dict]:
     """The property's audit trail: onboarding, edits, evaluations, stage moves with reasons."""
     properties.visible(db, user, property_id)
-    events = db.scalars(select(AuditEvent).where(AuditEvent.entity_type == "property",
-                                                 AuditEvent.entity_id == str(property_id)).order_by(AuditEvent.id))
-    return [{k: getattr(e, k) for k in ("id", "at", "actor_id", "actor_role", "action", "from_state", "to_state",
-                                        "reason", "details")} for e in events]
+    rows = db.execute(select(AuditEvent, User.name).outerjoin(User, User.id == AuditEvent.actor_id)
+                      .where(AuditEvent.entity_type == "property", AuditEvent.entity_id == str(property_id))
+                      .order_by(AuditEvent.id))
+    return [{**{k: getattr(e, k) for k in ("id", "at", "actor_id", "actor_role", "action", "from_state", "to_state",
+                                           "reason", "details")}, "actor_name": name} for e, name in rows]
 
 
 @router.get("/properties/{property_id}/photos/{photo_id}")
