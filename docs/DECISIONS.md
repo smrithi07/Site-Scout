@@ -264,6 +264,35 @@ Phase 3 was split at the user's request: **3a** = config versioning + users/role
   renamed key is still caught). Row-level rules (executives see only their own) are ownership
   checks in services, not masking.
 
+## Phase 3b decisions (audit log, jobs, worker)
+
+- **Audit log is append-only in the database**, not by convention: a trigger rejects UPDATE,
+  DELETE and TRUNCATE on `audit_events`, and a CHECK rejects a blank reason. The writer
+  (`core/audit.py`) takes the caller's session, so an event commits or rolls back with the change
+  it describes. System actions (worker, reaper) are recorded with `actor_role = 'system'`.
+- **Every job status change is audited** (created, started, failed, retried, requeued,
+  succeeded); step-level progress lives in `job_steps`, not the audit log, to keep the log readable.
+- **Step = transaction.** A step's DB writes and its `done` mark + persisted output commit
+  together. A crash mid-step therefore loses nothing that was marked done and leaves nothing
+  half-written; resume skips done steps and hands later steps the persisted outputs.
+- **Claiming**: `UPDATE … WHERE id = (SELECT … FOR UPDATE SKIP LOCKED LIMIT 1)`. Tested with 4
+  concurrent claimers on one job → exactly 1 winner.
+- **Heartbeat + reaper + lease**: a thread refreshes `heartbeat_at` every 5s; any worker's poll
+  re-queues running jobs silent for 30s (fails them after 3 such losses). Before committing a
+  step the runner row-locks the job and checks it still owns it, so a worker that was presumed
+  dead but wakes up can't commit into a job someone else now runs.
+- **Retry is manual** (the UI's retry button, reason required, audited, optional optimistic
+  `version`); automatic retries happen only for lost heartbeats. Rationale: an LLM or data
+  failure repeated automatically just burns time; the fallback chains (Core rule 7) handle the
+  transient cases inside the step.
+- **Optimistic locking helper** `update_versioned` (`core/locking.py`) → `StaleVersion` → HTTP 409.
+  Used by job retry now, by pipeline moves in Phase 6.
+- **Tests use queue `test`**; the worker container serves `default` only (config `jobs.queues`).
+  Test jobs are deleted after each test, but their audit events stay (the log can't be pruned,
+  by design). They're identifiable by `entity_type = 'test'` or by job ids no longer in `jobs`.
+- **Worker poll interval moved from settings to `config/sitescout.yaml` (`jobs:`)** with the
+  other tunables (config 0.5.0).
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

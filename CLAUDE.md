@@ -121,8 +121,8 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–3a are done;
-  **Phase 3b** (audit + jobs/worker) is next.
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–3b are done;
+  **Phase 4** (M1 backend) is next.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -151,5 +151,10 @@ frontend to hide a field.
 - Phase 3a done: `config_versions` registry (same version + different content = refused at
   startup), 4 seeded users, HMAC bearer tokens (`APP_SECRET` in `.env`), `require_roles`
   (401/403), per-role allow-list property views in `schemas/properties.py`.
-- **Next step: Phase 3b** — append-only audit writer, jobs table, worker with row locking,
-  heartbeat and step resume.
+- Phase 3b done: `audit_events` (append-only via DB trigger, reason required), `core/audit.py`
+  writer (same transaction as the change), `core/locking.py` (`update_versioned` → 409), jobs +
+  job_steps, worker (`app/jobs/`: claim with SKIP LOCKED, heartbeat thread, reaper, lease check
+  before each step commit, retry resumes at the failed step). New job kinds register their steps
+  in `app/jobs/registry.py`.
+- **Next step: Phase 4** — M1 backend (selection → cells, scoring, provenance, hotspots, fact
+  sheet, LLM adapter + validator + fallback chain).

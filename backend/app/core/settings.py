@@ -18,8 +18,6 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     groq_model: str = ""
 
-    worker_poll_seconds: float = 2.0
-
     # Demo auth (docs/DESIGN.md §4): tokens are HMAC(app_secret, user id). demo_auth enables the
     # role-switcher login endpoint; turn it off anywhere that isn't a demo.
     app_secret: str = Field(min_length=16)

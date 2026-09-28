@@ -1,6 +1,6 @@
 # Savo SiteScout config. Every snapshot records `version`. Bump it on ANY change below.
 # Weights/thresholds/radii/freshness/caps are filled in as each phase needs them (see docs/DESIGN.md).
-version: "0.4.0"
+version: "0.5.0"
 
 region:
   name: Greater Chennai Corporation
@@ -64,6 +64,13 @@ mask:
   min_blocking_share: 0.5
   # …or neither OSM nor the ML footprints have a building in it AND it has almost no local street.
   empty_max_local_road_m: 50
+
+jobs:
+  queues: [default]            # queues this deployment's worker serves (tests use their own)
+  poll_seconds: 2              # idle worker's wait between claim attempts
+  heartbeat_seconds: 5         # a running job's heartbeat interval
+  stale_after_seconds: 30      # no heartbeat for this long → worker presumed dead → job re-queued
+  max_attempts: 3              # re-queues after lost heartbeats before the job is failed for good
 
 scoring:
   max_missing_weight_fraction: 0.40   # above this: facts only, no rating

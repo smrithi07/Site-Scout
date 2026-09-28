@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from app.core.locking import StaleVersion
+
 
 class NoDataSnapshot(Exception):
     """No `ready` data snapshot exists — the offline ingest hasn't been run."""
@@ -8,6 +10,11 @@ class NoDataSnapshot(Exception):
 
 class NotFound(Exception):
     pass
+
+
+class Conflict(Exception):
+    """The request is valid but the entity's current state doesn't allow it (e.g. retrying a job
+    that isn't failed)."""
 
 
 def register(app: FastAPI) -> None:
@@ -18,3 +25,11 @@ def register(app: FastAPI) -> None:
     @app.exception_handler(NotFound)
     async def _not_found(_: Request, exc: NotFound) -> JSONResponse:
         return JSONResponse({"detail": str(exc) or "Not found"}, status_code=404)
+
+    @app.exception_handler(StaleVersion)
+    async def _stale(_: Request, exc: StaleVersion) -> JSONResponse:
+        return JSONResponse({"detail": str(exc)}, status_code=409)
+
+    @app.exception_handler(Conflict)
+    async def _conflict(_: Request, exc: Conflict) -> JSONResponse:
+        return JSONResponse({"detail": str(exc)}, status_code=409)
