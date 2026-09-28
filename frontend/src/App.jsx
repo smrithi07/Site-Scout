@@ -2,7 +2,9 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './app/Layout'
 import { useAuth } from './app/auth'
 import AnalysePage from './features/areas/AnalysePage'
+import ComparePage from './features/areas/ComparePage'
 import ReportPage from './features/areas/ReportPage'
+import ReportsPage from './features/areas/ReportsPage'
 import Home from './features/home/Home'
 import JobPage from './features/jobs/JobPage'
 
@@ -17,7 +19,9 @@ export default function App() {
       <Route element={<Layout />}>
         <Route index element={<Home />} />
         <Route path="areas/analyse" element={<RequireUser><AnalysePage /></RequireUser>} />
+        <Route path="areas/reports" element={<RequireUser><ReportsPage /></RequireUser>} />
         <Route path="areas/reports/:id" element={<RequireUser><ReportPage /></RequireUser>} />
+        <Route path="areas/compare/:a/:b" element={<RequireUser><ComparePage /></RequireUser>} />
         <Route path="jobs/:id" element={<RequireUser><JobPage /></RequireUser>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

@@ -121,8 +121,8 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–5a are done;
-  **Phase 5b** (M1 report UI) is next.
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–5b are done (M1
+  complete); **Phase 6** (M2 backend) is next.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -171,4 +171,9 @@ frontend to hide a field.
   `overlays` prop for 5b), `components/JobProgress.jsx`, `features/areas/AnalysePage.jsx` (3 modes
   + cell edits + preview + run), `features/jobs/JobPage.jsx`. New API: `/areas/grid`,
   `/reference/service-area`, `/reference/stores`; GZip middleware.
-- **Next step: Phase 5b** — full report view, report list/version history, compare.
+- Phase 5b done: `features/areas/ReportPage.jsx` (verdict, data-as-of, narrative source +
+  degraded notice, `components/ScoreBreakdown.jsx` + `ProvenanceBadge.jsx`, hotspots, facts,
+  caveats, versions, run again), `reportLayers.js` (h3-js heat + hotspots), `ReportsPage.jsx`
+  (grouped by area, tick two), `ComparePage.jsx`. Cells-mode labels name the nearest locality.
+- **M1 is complete end to end.** Next step: **Phase 6** — M2 backend (scout tasks, save-first
+  property flow, validation, duplicates, evaluation, pipeline with locking, follow-ups, audit).

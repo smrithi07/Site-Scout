@@ -398,6 +398,27 @@ list/history, compare.
   anonymous volume that otherwise survives a dependency change. The database volume is named and kept.
 - `/areas/grid` (613 cells, 240 KB) is gzip-compressed by the API → 38 KB.
 
+## Phase 5b decisions (report view + compare)
+
+- **Report page order follows the manager's questions**: verdict (score, rating, confidence, data
+  as of) → why (narrative) → how it was reached (factor table) → where to scout (hotspots, click to
+  fly there) → what's there (facts) → caveats → versions. Map beside it: per-cell score heat
+  (res-9 cells drawn in the browser with h3-js from the saved `cell_scores`), area outline,
+  numbered hotspots, Savomart stores.
+- **The narrative's origin is always shown**: "Written by Gemini (model) from the fact sheet",
+  plus "after Gemini: HTTP 503" when it took a retry, "reused from an identical earlier analysis"
+  on a cache hit, and an amber **Degraded** notice when the template stood in for a failed AI.
+- **Factor table**: provenance badge per factor (observed / lower bound / proxy / mock / missing),
+  raw value with unit and source, normalised bar, configured vs effective weight (shown when
+  renormalisation changed it), points; missing factors stay listed as "not scored → weight
+  redistributed" instead of disappearing.
+- **Compare** works for two versions of one area or two different areas. The API's flags are
+  spelled out: different area / different data snapshot / different config ("part of any
+  difference is the rules changing"). Both areas are drawn on one map.
+- **Cells-mode labels** now name the nearest in-area locality and zone ("3 cells near Venus Colony
+  (Teynampet zone)") so the report list says where hand-picked areas are. Existing reports keep
+  their labels (immutable).
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

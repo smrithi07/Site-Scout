@@ -55,6 +55,20 @@ def _check_parents_exist(db: Session, s: int, cells: list[str]) -> None:
                              f"{', '.join(unknown[:5])}{'…' if len(unknown) > 5 else ''}")
 
 
+def _nearby_name(db: Session, s: int, cells: list[str]) -> str:
+    """' near <locality> (<zone> zone)' for hand-picked cells, so a report list says where they are."""
+    if not cells:
+        return ""
+    row = db.execute(text("""
+        WITH c AS (SELECT ST_Centroid(ST_Collect(ST_Centroid(geom))) AS pt FROM h3_cells
+                   WHERE snapshot_id = :s AND h3 = ANY(:cells))
+        SELECT (SELECT l.name FROM localities l WHERE l.snapshot_id = :s AND l.ward_no IS NOT NULL
+                  AND l.kind IN ('osm_place', 'post_office') ORDER BY l.geom <-> c.pt LIMIT 1) AS place,
+               (SELECT z.name FROM zones z WHERE z.snapshot_id = :s ORDER BY z.geom <-> c.pt LIMIT 1) AS zone
+        FROM c"""), dict(s=s, cells=cells)).one()
+    return f" near {row.place} ({row.zone} zone)" if row.place else ""
+
+
 def _contiguous(cells: set[str]) -> bool:
     if not cells:
         return True
@@ -117,7 +131,7 @@ def resolve(db: Session, sel: Selection) -> dict:
         _check_parents_exist(db, s, sel.cells)
         basis = {"basis": "cells", "source": "h3", "approximate": False, "label": "cells picked on the map"}
         cells = _children(db, s, sel.cells)
-        label = f"{len(set(sel.cells))} selected cells"
+        label = f"{len(set(sel.cells))} cells{_nearby_name(db, s, cells)}"
 
     # Manual edits happen on selection cells (what the user sees and clicks).
     if sel.add_cells:
