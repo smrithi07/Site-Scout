@@ -121,8 +121,8 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–5b are done (M1
-  complete); **Phase 6** (M2 backend) is next.
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–6a are done (M1
+  complete); **Phase 6b** (evaluation + pipeline) is next.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -175,5 +175,10 @@ frontend to hide a field.
   degraded notice, `components/ScoreBreakdown.jsx` + `ProvenanceBadge.jsx`, hotspots, facts,
   caveats, versions, run again), `reportLayers.js` (h3-js heat + hotspots), `ReportsPage.jsx`
   (grouped by area, tick two), `ComparePage.jsx`. Cells-mode labels name the nearest locality.
-- **M1 is complete end to end.** Next step: **Phase 6** — M2 backend (scout tasks, save-first
-  property flow, validation, duplicates, evaluation, pipeline with locking, follow-ups, audit).
+- **M1 is complete end to end.**
+- Phase 6a done: `models/scouting.py` (scout_tasks, properties, property_notes, property_photos),
+  `services/locate.py` (point context + illustrative rent band), `services/properties.py`
+  (save-first create, assess → 422 rejects / warnings / missing, duplicates + explicit
+  resolution, versioned edits, photos), `services/tasks.py`, `api/scouting.py`. Shared
+  `Unprocessable` (422) / `Forbidden` (403) errors in `core/errors.py`. Photos in `uploads/`.
+- **Next step: Phase 6b** — evaluation job + pipeline + follow-up loop.

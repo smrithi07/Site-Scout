@@ -18,4 +18,8 @@ Working notes, coverage numbers, and the reasoning behind each choice: `docs/DAT
 locality index), OSRM (radius catchments instead), TN OGD, Bhuvan (not needed: the OSM mask was validated at the Phase 2
 gate), Google Open Buildings v3 (Microsoft footprints passed the gate; 1.12 GB tile not needed).
 
-**Mock data**: none yet. Any mock data added later is listed here and labelled `mock` in provenance.
+**Mock data** (labelled `mock` in provenance and "illustrative" in the UI):
+
+| Dataset | Where | What it is |
+|---|---|---|
+| Rent bands, ₹/sq ft/month by GCC zone group | `config/sitescout.yaml` → `mock_rent_bands` | Invented, plausible-looking ranges (core 90–200, inner 60–140, outer 50–120, north 35–90) used only to sanity-check entered rents and, in Phase 6b, to position rent affordability. Not market data. |

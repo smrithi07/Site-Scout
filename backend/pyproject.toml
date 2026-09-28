@@ -15,6 +15,7 @@ dependencies = [
     "h3~=4.5",
     "httpx~=0.28",
     "osmium~=4.3",
+    "python-multipart~=0.0.32",  # property photo uploads
 ]
 
 [project.optional-dependencies]

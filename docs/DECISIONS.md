@@ -419,6 +419,37 @@ list/history, compare.
   (Teynampet zone)") so the report list says where hand-picked areas are. Existing reports keep
   their labels (immutable).
 
+## Phase 6a decisions (scout tasks + properties)
+
+Phase 6 split: **6a** = tasks, save-first properties, validation, duplicates, photos, access;
+**6b** = evaluation job, pipeline, follow-up loop.
+
+- **Scout tasks** are created by the BD Manager, usually from a report's hotspots (their res-8
+  parents become the target cells); only BD Executives can be assignees. An executive sees only
+  their tasks and, inside each, only the hotspots it covers (docs/DESIGN.md §4: "hotspots of
+  tasked areas only"). Executives move tasks open → in_progress → done; only the manager cancels
+  or reassigns. Onboarding the first property under a task moves it to in_progress (audited).
+- **Save first, idempotent**: `client_id` (UUID from the phone) is unique, so a retried submit
+  returns the saved record (200) instead of creating a second one.
+- **Reject vs warn**: only truly unusable input is rejected (422, nothing saved): pin at (0,0),
+  outside GCC, inside a water/sea polygon, negative money, rent without a unit. Everything else is
+  saved with warnings: GPS accuracy > 50 m, pin > 500 m from the executive's own position, rent
+  of 0 (treated as unknown), rent/sq ft outside 0.5× – 2× the illustrative zone band. Missing
+  critical fields (rent, area) and photos are listed, never guessed.
+- **Duplicates never merge or block silently**: a save within 25 m of a property with a similar
+  name (trigram ≥ 0.35) is stored as `possible_duplicate` with its candidates. The executive
+  chooses "same" (their entry is kept but marked merged, and its location notes are attached to
+  the original as a note) or "different" (flag cleared). Both are audited.
+- **Row-level access** (BD Manager: all; BD Executive: own) lives in services; field masking stays
+  in the per-role builders. Survey roles get 403 on property endpoints for now; they'll reach
+  study-linked properties through M3 study endpoints with their own masked views.
+- **Photos** upload separately (jpeg/png/webp, ≤ 8 MB) to the git-ignored `uploads/` volume;
+  a property without photos is saved and flagged `photos` missing until one arrives.
+- **Location context** (`/reference/locate`): in GCC? in water? ward, zone, pincode, nearest
+  neighbourhood name (OSM place names preferred over raw post-office strings) and the
+  illustrative rent band — used to prefill the form and by the validator.
+- **Rent bands are mock** (`mock_rent_bands` in config; see `data/MANIFEST.md`).
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

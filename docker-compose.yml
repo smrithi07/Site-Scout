@@ -11,6 +11,7 @@ x-backend: &backend
     - ./config:/config:ro
     - ./data:/data:ro
     - ./data/processed:/data/processed   # ingest scratch (clipped OSM extract), git-ignored
+    - ./uploads:/uploads                 # property photos, git-ignored
 
 services:
   db:

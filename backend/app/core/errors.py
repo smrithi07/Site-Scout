@@ -16,6 +16,14 @@ class SelectionError(Exception):
     """An area selection that can't be analysed as given; the message says why and what to do."""
 
 
+class Unprocessable(Exception):
+    """Input that can't be saved as given (bad pin, invalid choice); the message says why. → 422"""
+
+
+class Forbidden(Exception):
+    """Row-level access denied (e.g. another executive's property). → 403"""
+
+
 class Conflict(Exception):
     """The request is valid but the entity's current state doesn't allow it (e.g. retrying a job
     that isn't failed)."""
@@ -41,3 +49,11 @@ def register(app: FastAPI) -> None:
     @app.exception_handler(SelectionError)
     async def _selection(_: Request, exc: SelectionError) -> JSONResponse:
         return JSONResponse({"detail": str(exc)}, status_code=422)
+
+    @app.exception_handler(Unprocessable)
+    async def _unprocessable(_: Request, exc: Unprocessable) -> JSONResponse:
+        return JSONResponse({"detail": str(exc)}, status_code=422)
+
+    @app.exception_handler(Forbidden)
+    async def _forbidden(_: Request, exc: Forbidden) -> JSONResponse:
+        return JSONResponse({"detail": str(exc)}, status_code=403)

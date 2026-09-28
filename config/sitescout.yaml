@@ -1,6 +1,6 @@
 # Savo SiteScout config. Every snapshot records `version`. Bump it on ANY change below.
 # Weights/thresholds/radii/freshness/caps are filled in as each phase needs them (see docs/DESIGN.md).
-version: "0.7.0"
+version: "0.8.0"
 
 region:
   name: Greater Chennai Corporation
@@ -87,6 +87,28 @@ llm:
   total_budget_s: 90           # whole chain; past this → template
   min_interval_s: {gemini: 4.0, groq: 2.0}   # client-side spacing between calls (free-tier friendly)
   circuit_breaker: {failures: 3, cooldown_s: 300}   # skip a provider after 3 straight failures
+
+properties:
+  # Validation (docs/DESIGN.md §6). Rejections stop the save; warnings never do.
+  reject_in_landuse: [water, sea]      # a pin inside these polygons is refused
+  max_gps_accuracy_m: 50               # worse → warning
+  max_distance_from_executive_m: 500   # pin this far from the executive's own position → warning
+  duplicate_radius_m: 25               # duplicate = within this distance…
+  duplicate_name_similarity: 0.35      # …and label trigram similarity ≥ this
+  rent_outlier_factor: {low: 0.5, high: 2.0}   # outside band_min × low … band_max × high → warning
+  critical_fields: [monthly_rent, area_sqft]   # missing → recommendation "Needs Info" (6b)
+  photos: {max_bytes: 8000000, types: [image/jpeg, image/png, image/webp]}
+
+mock_rent_bands:
+  # ILLUSTRATIVE ONLY (provenance: mock). ₹ per sq ft per month for small retail frontage, by GCC
+  # zone group. Invented for the demo — not market data; labelled wherever it appears.
+  label: illustrative
+  default: [50, 120]
+  groups:
+    core: {zones: [8, 9, 10, 13], band: [90, 200]}              # Anna Nagar, Teynampet, Kodambakkam, Adyar
+    inner: {zones: [5, 6, 11, 12, 14], band: [60, 140]}          # Royapuram, TVK Nagar, Valasaravakkam, Alandur, Perungudi
+    outer: {zones: [7, 15], band: [50, 120]}                     # Ambattur, Sholinganallur
+    north: {zones: [1, 2, 3, 4], band: [35, 90]}                 # Thiruvottiyur, Manali, Madhavaram, Tondiarpet
 
 selection:
   # Counted in score cells (res 9, ~0.1 km² each). Floor ≈ one selection cell; cap ≈ 60 km².

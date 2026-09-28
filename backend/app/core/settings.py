@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     app_secret: str = Field(min_length=16)
     demo_auth: bool = True
 
+    upload_dir: str = "/uploads"  # property photos (bind-mounted, git-ignored)
+
 
 @lru_cache
 def get_settings() -> Settings:
