@@ -2,14 +2,15 @@
 areas with scout tasks (Phase 6)."""
 import h3
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.core.auth import Role, require_roles
+from app.core.config import load_config
 from app.core.db import get_db
 from app.jobs import queue
 from app.models import AreaReport, User
-from app.services import area_report, selection
+from app.services import area_report, selection, snapshots
 
 router = APIRouter(prefix="/areas", tags=["areas"])
 bd_manager = require_roles(Role.BD_MANAGER)
@@ -28,6 +29,29 @@ def _summary(r: AreaReport) -> dict:
             "score": r.score, "rating": r.rating, "confidence": r.confidence, "created_at": r.created_at,
             "created_by": r.created_by, "snapshot_id": r.snapshot_id, "config_version": r.config_version,
             "narrative_source": r.narrative_source}
+
+
+@router.get("/grid")
+def selection_grid(_: User = Depends(bd_manager), db: Session = Depends(get_db)) -> dict:
+    """Every selection cell (res 8) with the share of its score cells that are scoreable land, so
+    the map can grey out water/airport/industrial cells before anyone clicks them."""
+    snap = snapshots.active_snapshot(db)
+    if snap.id not in _grid_cache:
+        rows = db.execute(text("""
+            SELECT c.parent_h3 AS h3, avg(f.scoreable::int) AS share
+            FROM h3_cells c JOIN cell_features f USING (snapshot_id, h3)
+            WHERE c.snapshot_id = :s AND c.res = :r GROUP BY c.parent_h3"""),
+            dict(s=snap.id, r=load_config()["grid"]["score_res"])).all()
+        share = {r.h3: round(float(r.share), 2) for r in rows}
+        fc = _cells_geojson(sorted(share))
+        for f in fc["features"]:
+            f["properties"]["scoreable_share"] = share[f["properties"]["h3"]]
+        _grid_cache.clear()
+        _grid_cache[snap.id] = {"snapshot_id": snap.id, **fc}
+    return _grid_cache[snap.id]
+
+
+_grid_cache: dict[int, dict] = {}
 
 
 @router.post("/preview")

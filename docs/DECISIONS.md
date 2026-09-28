@@ -370,6 +370,34 @@ The user asked for careful use of API calls, with fallbacks and retries.
   restart` keeps stale values, so the worker ran with no keys and silently used the template.
   Fixes: `make reload-env`, and the attempt log now states "no LLM provider configured".
 
+## Phase 5a decisions (frontend shell + selection)
+
+Phase 5 split like 3 and 4: **5a** = shell, map, selection, run + progress; **5b** = report view,
+list/history, compare.
+
+- **Libraries**: React Router (linkable report/job URLs), TanStack Query (fetching + job polling
+  at 1s until terminal; no retries on 401/403/404/422), MapLibre GL 6, h3-js (5b).
+- **Base map: OpenFreeMap "positron"** — free, no key, MapLibre-native, muted so purple overlays
+  read clearly. It's the only thing the browser loads from outside our API; all analysis data is
+  ours (Core rule 4 is about analysis inputs, not base-map tiles).
+- **maplibre-gl 6 gotchas**: named exports only (`import { Map }`), and its web worker is loaded via
+  `new URL(<name>, import.meta.url)`, which Vite's dependency pre-bundling breaks (blank map,
+  "Worker failed to load"). Fix: `optimizeDeps.exclude: ['maplibre-gl']`. A production build will
+  need the worker files served as static assets — Phase 12 (deploy).
+- **Selection UX**: every mode ends in a server preview (`/areas/preview`), so the UI never
+  computes geometry itself. After a pincode/locality preview, clicking a map cell adds or removes
+  it (tracked as `add_cells`/`remove_cells`, undoable). Outside-GCC localities are listed but
+  disabled with the reason, rather than hidden. The map flies to an area once per new base
+  selection, not on every edit. Mostly-unscoreable cells (< 30% scoreable land) are greyed.
+- **Jobs have their own page** (`/jobs/:id`) so a running or failed analysis can be reopened; the
+  retry form requires a reason (audited) and sends the job `version` (409 → refresh).
+- **Demo auth in the browser**: the session (token + user) lives in localStorage; switching role
+  clears the query cache so one role's data never shows on another's screen. Access is still
+  enforced by the API; the UI only hides what a role can't use.
+- **`make up` now uses `-V`** (renew anonymous volumes): the web container's `node_modules` is an
+  anonymous volume that otherwise survives a dependency change. The database volume is named and kept.
+- `/areas/grid` (613 cells, 240 KB) is gzip-compressed by the API → 38 KB.
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

@@ -121,8 +121,8 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–4b are done;
-  **Phase 5** (frontend shell + M1 UI) is next.
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–5a are done;
+  **Phase 5b** (M1 report UI) is next.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -166,5 +166,9 @@ frontend to hide a field.
   (cache → provider retries with backoff/Retry-After → next provider → template; circuit breaker,
   call spacing, total time budget), `calls.py` (`llm_calls` log + cache), code-owned caveats.
   Tests never call real APIs (conftest autouse fixture). After editing `.env`: `make reload-env`.
-- **Next step: Phase 5** — frontend shell + M1 UI (role switcher, map, selection modes, job
-  progress, report view, save/compare).
+- Phase 5a done: `frontend/src/` — `api/client.js` (token, ApiError), `app/` (auth context, role
+  switcher, layout), `components/MapView.jsx` (MapLibre + OpenFreeMap base, grid feature-state,
+  `overlays` prop for 5b), `components/JobProgress.jsx`, `features/areas/AnalysePage.jsx` (3 modes
+  + cell edits + preview + run), `features/jobs/JobPage.jsx`. New API: `/areas/grid`,
+  `/reference/service-area`, `/reference/stores`; GZip middleware.
+- **Next step: Phase 5b** — full report view, report list/version history, compare.

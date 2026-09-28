@@ -12,6 +12,9 @@ ACCESS = [
     ("GET", "/reference/snapshot", set(Role)),
     ("GET", "/config", set(Role)),
     ("GET", "/auth/me", set(Role)),
+    ("GET", "/areas/grid", {Role.BD_MANAGER}),
+    ("GET", "/reference/service-area", set(Role)),
+    ("GET", "/reference/stores", {Role.BD_MANAGER, Role.BD_EXECUTIVE}),
 ]
 
 

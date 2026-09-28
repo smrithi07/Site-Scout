@@ -1,7 +1,9 @@
 .PHONY: up down logs ps health test psql migrate ingest gate reload-env llm-smoke
 
 up:
-	docker compose up -d --build
+	# -V renews anonymous volumes: web's node_modules would otherwise survive a dependency change.
+	# The database uses a named volume (pgdata), which is kept.
+	docker compose up -d --build -V
 
 down:
 	docker compose down
