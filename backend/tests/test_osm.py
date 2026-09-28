@@ -55,6 +55,18 @@ def test_dense_core_stays_scoreable():
     assert total > 20 and masked <= 1
 
 
+def test_ml_buildings_close_the_osm_mapping_gap():
+    # Gate result: OSM left Manali/Thiruvottriyur/Tondiarpet/Sholinganallur 52–95% building-sparse.
+    with engine.connect() as c:
+        s = c.execute(text("SELECT max(id) FROM data_snapshots WHERE status = 'ready'")).scalar()
+        zones = c.execute(text("SELECT zone_no, name FROM zones WHERE snapshot_id = :s"), dict(s=s)).all()
+        for zone_no, name in zones:
+            cov = gate._coverage(c, s, f"""
+                SELECT c.h3, c.geom FROM h3_cells c JOIN cell_features f USING (snapshot_id, h3)
+                WHERE c.snapshot_id = {s} AND c.res = 9 AND f.scoreable AND c.zone_no = {zone_no}""", "ml_buildings")
+            assert cov["roaded_but_building_sparse_pct"] <= 10, (name, cov)
+
+
 def test_osm_place_names_are_searchable():
     top = client.get("/localities/search", params={"q": "Abhiramapuram"}).json()["candidates"][0]
     assert top["kind"] == "osm_place" and top["in_service_area"] and top["zone_name"] == "Teynampet"

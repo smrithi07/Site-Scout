@@ -58,11 +58,12 @@ def build_cell_features(conn: Connection, s: int) -> dict:
 
     conn.execute(text("""
         INSERT INTO cell_features (
-            snapshot_id, h3, building_count, building_footprint_m2, residential_share, commercial_share,
+            snapshot_id, h3, building_count, building_footprint_m2, ml_building_count, ml_building_footprint_m2,
+            residential_share, commercial_share,
             blocking_share, blocking_class, competitor_count, transit_count, school_count, hospital_count,
             office_count, market_count, road_length_m, main_road_length_m, residential_road_length_m,
             junction_count, scoreable, mask_reason)
-        SELECT :s, c.h3, coalesce(b.n, 0), coalesce(b.fp, 0),
+        SELECT :s, c.h3, coalesce(b.n, 0), coalesce(b.fp, 0), coalesce(mb.n, 0), coalesce(mb.fp, 0),
                coalesce((SELECT share FROM t_share WHERE h3 = c.h3 AND lclass = 'residential'), 0),
                coalesce((SELECT share FROM t_share WHERE h3 = c.h3 AND lclass = 'commercial'), 0),
                coalesce(bl.share, 0),
@@ -76,6 +77,9 @@ def build_cell_features(conn: Connection, s: int) -> dict:
         LEFT JOIN LATERAL (
             SELECT count(*) AS n, sum(footprint_m2) AS fp FROM osm_buildings
             WHERE snapshot_id = :s AND ST_Intersects(c.geom, geom)) b ON true
+        LEFT JOIN LATERAL (
+            SELECT count(*) AS n, sum(footprint_m2) AS fp FROM ml_buildings
+            WHERE snapshot_id = :s AND ST_Intersects(c.geom, geom)) mb ON true
         LEFT JOIN LATERAL (
             SELECT count(*) FILTER (WHERE category = 'competitor') AS competitor,
                    count(*) FILTER (WHERE category = 'transit') AS transit,
@@ -98,7 +102,8 @@ def build_cell_features(conn: Connection, s: int) -> dict:
                mask_reason = CASE WHEN blocking_share >= :min_block THEN blocking_class ELSE 'empty' END
         WHERE snapshot_id = :s
           AND (blocking_share >= :min_block
-               OR (building_count = 0 AND residential_road_length_m < :empty_road))"""), p)
+               OR (greatest(building_count, ml_building_count) = 0
+                   AND residential_road_length_m < :empty_road))"""), p)
 
     total, masked = conn.execute(text("""
         SELECT count(*), count(*) FILTER (WHERE NOT scoreable) FROM cell_features WHERE snapshot_id = :s"""),

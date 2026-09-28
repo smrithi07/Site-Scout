@@ -11,9 +11,11 @@ Working notes, coverage numbers, and the reasoning behind each choice: `docs/DAT
 | 4 | GCC ward boundaries (200 wards, 2022) and zones | OpenCity — GCC Ward Information (data.opencity.in) | per OpenCity dataset page | 2026-09-28 | `raw/wards/wards_2022.kml`, `raw/wards/zones_2022.kml` | Downloaded; row counts checked at Phase 1 ingest |
 | 5 | Chennai ward boundaries (155 wards, 2008) | OpenCity / datameet Municipal_Spatial_Data | ODbL (datameet) / per OpenCity page | 2026-09-28 | `raw/wards/wards_2008.kml`, `raw/wards/wards_datameet.geojson` | Downloaded; needed only for the census join |
 | 6 | Census of India 2011 — Chennai ward-wise | OpenCity "Chennai – Census 2011 Data", sourced from censusindia.gov.in | Government Open Data Licence – India | 2026-09-28 | `raw/census/chennai_ward_census_2011.csv` | Downloaded; join untested (gated, see `docs/DATA.md`) |
+| 8 | Microsoft Global ML Building Footprints, release 2026-02-03 (India, quadkeys 123312201, 123312203, 123312210, 123312212) | minedbuildings.z5.web.core.windows.net (index: `global-buildings/dataset-links.csv`, copy of the Chennai rows in `raw/buildings_ms/dataset-links_chennai.csv`) | ODbL 1.0 — © Microsoft | 2026-09-28 | `raw/buildings_ms/india_<quadkey>.csv.gz` (69.7 MB total) | 4 files, gzip-valid, 869,486 buildings; 807,931 inside the clip box. Sizes match the index |
 | 7 | Savomart store list (all zones; 11 in CHN) | Savomart internal Stores API (`GET`, token auth) | Internal — hackathon use only | 2026-09-28 | `raw/stores/stores_20260928.json` | HTTP 200; 63 BLR + 11 CHN stores (codes and locations not committed) |
 
 **Not used**: data.gov.in all-India pincode boundaries (502 on download), Nominatim (replaced by local
-locality index), OSRM (radius catchments instead), TN OGD, Bhuvan (deferred to the Phase 2 gate).
+locality index), OSRM (radius catchments instead), TN OGD, Bhuvan (not needed: the OSM mask was validated at the Phase 2
+gate), Google Open Buildings v3 (Microsoft footprints passed the gate; 1.12 GB tile not needed).
 
 **Mock data**: none yet. Any mock data added later is listed here and labelled `mock` in provenance.

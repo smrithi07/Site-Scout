@@ -114,7 +114,15 @@ This means:
 untouched, as the audit record. Filtering to "stores relevant to this analysis" happens by
 geometry at query time, never by pre-filtering on `zone` at ingest.
 
-## Metro fringe decision (still open, gated)
+## Building footprints: Microsoft Global ML Building Footprints (added at the Phase 2 gate)
+
+OSM buildings proved unmapped in Manali/Thiruvottriyur/Tondiarpet/Sholinganallur (52–95% of
+roaded cells had < 10 buildings). Microsoft's ML footprints (release 2026-02-03, ODbL, 4 level-9
+quadkey tiles, 69 MB) bring every GCC zone to ≤ 8.5% sparse. They are the Phase 4 demand
+source; see `docs/DECISIONS.md` §Phase 2 gate for the measured table and why not Google Open
+Buildings.
+
+## Metro fringe decision (closed at the Phase 2 gate: out)
 
 Locked earlier: **GCC core only, unless Phase 0/2 data quality supports adding the metro fringe
 (Tambaram, Avadi, etc.) — if quality is poor, GCC alone is enough.**
@@ -133,8 +141,8 @@ building/landuse coverage check runs — don't decide it from the pincode-polygo
 ## Open items before Phase 1 can fully close
 
 1. ~~Verify the 11th Chennai store's `store_code`~~ — **closed in Phase 1**: (captured by the ingest; kept in the git-ignored store file).
-2. Decide, once Phase 2's OSM coverage numbers exist: metro fringe in or out.
-3. Decide, once Phase 2's OSM coverage numbers exist: Bhuvan land-use cross-check needed or not.
+2. ~~Metro fringe in or out~~ — **out** (Phase 2 gate).
+3. ~~Bhuvan land-use cross-check~~ — **not needed** (Phase 2 gate: OSM mask validated on named sites).
 4. Confirm whether the census 2011 join (2008 155-ward map) is worth the ~2-3 hours of cleanup —
    default lean is "only if trivial," since OSM building density is the always-available demand
    proxy regardless.

@@ -20,6 +20,7 @@ from ingest import gate as gate_report
 from ingest.features import build_cell_features
 from ingest.grid import build_grid
 from ingest.localities import build_localities
+from ingest.ml_buildings import load_ml_buildings
 from ingest.osm import load_osm
 from ingest.reference import (
     build_service_area,
@@ -31,7 +32,7 @@ from ingest.reference import (
 )
 
 STEPS = [load_zones, load_wards, build_service_area, load_post_offices, load_pincodes,
-         load_stores, build_grid, load_osm, build_cell_features, build_localities]
+         load_stores, build_grid, load_osm, load_ml_buildings, build_cell_features, build_localities]
 
 
 def build() -> int:

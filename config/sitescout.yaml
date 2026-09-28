@@ -1,6 +1,6 @@
 # Savo SiteScout config. Every snapshot records `version`. Bump it on ANY change below.
 # Weights/thresholds/radii/freshness/caps are filled in as each phase needs them (see docs/DESIGN.md).
-version: "0.3.0"
+version: "0.4.0"
 
 region:
   name: Greater Chennai Corporation
@@ -51,12 +51,18 @@ osm:
     green:       {leisure: [park, nature_reserve], landuse: [forest, grass, recreation_ground], natural: [wood]}
   place_types: [suburb, neighbourhood, locality, quarter, village, hamlet, town]
 
+ml_buildings:
+  # Microsoft Global ML Building Footprints, release 2026-02-03, quadkeys 123312201/203/210/212
+  # (data/raw/buildings_ms/dataset-links_chennai.csv). Added at the Phase 2 gate because OSM
+  # buildings are unmapped in Manali/Thiruvottriyur/Tondiarpet/Sholinganallur.
+  dir: raw/buildings_ms
+  source: ms_global_ml_2026_02
+
 mask:
   # A score cell is non-scoreable if these classes cover at least `min_blocking_share` of it…
   blocking_classes: [sea, water, wetland, beach, aeroway, industrial, military]
   min_blocking_share: 0.5
-  # …or it has no buildings AND almost no local streets (empty land, not just unmapped buildings —
-  # roads are far better mapped than buildings in Chennai OSM).
+  # …or neither OSM nor the ML footprints have a building in it AND it has almost no local street.
   empty_max_local_road_m: 50
 
 scoring:

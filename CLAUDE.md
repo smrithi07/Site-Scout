@@ -121,8 +121,8 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–2 are built;
-  Phase 2's gate decisions are pending, then **Phase 3** (platform core).
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–2 are done;
+  **Phase 3** (platform core) is next.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -146,5 +146,6 @@ frontend to hide a field.
   `/localities/search`, `/reference/pincodes/{pin}`, `/reference/snapshot`.
 - Phase 2 built: OSM clip + pyosmium ingest, POIs, building points, land use (+ derived sea),
   road segments split at junctions, per-cell features + non-scoreable mask, `make gate` report.
-  Full `make ingest` ~46s. **Gate decisions pending** (demand proxy where OSM buildings are
-  unmapped; metro fringe; Bhuvan) — see `docs/DECISIONS.md` open questions 6–7.
+  Gate decided: Bhuvan out, metro fringe out, **Microsoft ML building footprints** added
+  (`ml_buildings`) as the citywide demand source. Full `make ingest` ~90s.
+- **Next step: Phase 3** — platform core (config versioning, users/roles/masking, audit, jobs + worker).

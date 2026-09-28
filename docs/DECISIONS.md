@@ -202,7 +202,40 @@ Land-use polygons (any class) cover 29.3% of GCC.
 almost no building data. (3) **OSM building density is not a usable demand proxy in the four
 northern/southern zones**, which is where several of Savomart's existing
 stores are. Scored naively, these zones would look like low demand purely because of missing
-mapping. Decision needed: see open question 6.
+mapping.
+
+### Phase 2 gate — decisions (signed off by the user)
+
+- **Bhuvan: out.** The mask catches every named non-neighbourhood site from OSM alone.
+- **Metro fringe: out.** Decided on the OSM numbers above. Note: with ML buildings (below) the
+  fringe within 2 km of a Savomart store is only 2.5% building-sparse (whole 10 km ring: 26.6%),
+  so building data alone no longer rules it out. It stays out because there's no fringe
+  boundary/ward/pincode geometry ingested and the time is better spent on M1→M3. Fringe stores
+  still count for cannibalisation (radius query, not a service-area filter).
+- **Demand source: Microsoft Global ML Building Footprints** (option C of three: A = mark
+  under-mapped cells as missing demand, B = street-density proxy, C = ingest an ML building
+  dataset). Chosen over Google Open Buildings v3 on size (69 MB vs 1.12 GB for the covering
+  tile) and recency (Feb 2026 vs Jun 2023); Google was the fallback if Microsoft failed the
+  re-measure. Loaded as its own table (`ml_buildings`, provenance `observed (ML-derived)`), not
+  merged into OSM, because many OSM buildings in India were imported from such datasets and a
+  merge would double count. **Re-measured with the same gate:**
+
+  | Area | OSM building-sparse | ML building-sparse | ML median buildings / roaded cell |
+  |---|---|---|---|
+  | GCC, all scoreable cells | 20.4% | **1.5%** | 134 |
+  | Manali | 94.9% | **8.5%** | 74 |
+  | Thiruvottriyur | 88.1% | **1.0%** | 209 |
+  | Tondiarpet | 52.4% | **1.4%** | 176 |
+  | Sholinganallur | 52.2% | **4.5%** | 76 |
+  | Every other zone | 0.5–30.5% | 0–2.8% | 95–179 |
+
+  Every zone is now ≤ 8.5% (Manali's residue is its industrial belt). **Phase 4 uses ML buildings
+  as the single citywide demand source** (one consistent measure keeps percentile normalisation
+  fair); OSM building counts stay in `cell_features` as a cross-check. The ~15-minute flag from
+  option A (mark a cell's demand `missing` when it is building-sparse in the chosen source) is
+  still built into Phase 4 scoring as the safety net.
+- **Mask "empty" rule now needs zero buildings in *both* sources**: 139 → 84 empty cells. 55 cells
+  had real buildings that OSM never mapped.
 
 ## Open questions carried into the next session
 
@@ -219,8 +252,7 @@ mapping. Decision needed: see open question 6.
 4. **Gemini/Groq API keys**: not yet created as of handoff. Needed before Phase 4 (M1 backend,
    which wires up the LLM adapter) can be checkpointed end-to-end.
 5. ~~**11th Chennai store's `store_code`**~~ — **closed in Phase 1** (captured by the ingest).
-6. **Demand proxy where OSM buildings are unmapped** (Phase 2 gate result). Options in the Phase
-   2 hand-off: flag under-mapped cells as `missing` demand and renormalize, fall back to street
-   density (`proxy`), or ingest an ML building-footprint dataset (Microsoft / Google Open Buildings).
-7. **Metro fringe and Bhuvan**: gate numbers above; recommendation is both out. Awaiting sign-off.: cut off in a chat paste, cosmetic only — will surface
+6. ~~**Demand proxy where OSM buildings are unmapped**~~ — **closed**: Microsoft ML buildings
+   (see §Phase 2 gate — decisions).
+7. ~~**Metro fringe and Bhuvan**~~ — **closed**: both out (user sign-off, measured).: cut off in a chat paste, cosmetic only — will surface
    naturally once the Stores ingest script runs against the saved JSON file.

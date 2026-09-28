@@ -30,14 +30,15 @@ def _mask_check(conn: Connection, s: int) -> list[dict]:
     return rows
 
 
-def _coverage(conn: Connection, s: int, cells_sql: str) -> dict:
-    """Building-coverage metrics over a set of res-9 cells given as SQL returning (h3, geom)."""
+def _coverage(conn: Connection, s: int, cells_sql: str, buildings: str = "osm_buildings") -> dict:
+    """Building-coverage metrics over a set of res-9 cells given as SQL returning (h3, geom),
+    for one building source table (osm_buildings | ml_buildings)."""
     local = load_config()["osm"]["local_road_classes"]
     r = conn.execute(text(f"""
         WITH cells AS ({cells_sql}),
         m AS (
             SELECT c.h3,
-                   (SELECT count(*) FROM osm_buildings b WHERE b.snapshot_id = :s AND ST_Intersects(c.geom, b.geom)) AS bld,
+                   (SELECT count(*) FROM {buildings} b WHERE b.snapshot_id = :s AND ST_Intersects(c.geom, b.geom)) AS bld,
                    (SELECT coalesce(sum(ST_Length(ST_Intersection(c.geom, r.geom)::geography)), 0) FROM road_segments r
                     WHERE r.snapshot_id = :s AND r.highway = ANY(:local) AND ST_Intersects(c.geom, r.geom)) AS local_m
             FROM cells c)
@@ -54,15 +55,11 @@ def _coverage(conn: Connection, s: int, cells_sql: str) -> dict:
 def run(conn: Connection, s: int) -> dict:
     report: dict = {"snapshot_id": s, "mask_named_sites": _mask_check(conn, s)}
 
-    report["gcc_all"] = _coverage(conn, s, f"""
+    scoreable = f"""
         SELECT c.h3, c.geom FROM h3_cells c JOIN cell_features f USING (snapshot_id, h3)
-        WHERE c.snapshot_id = {s} AND c.res = 9 AND f.scoreable""")
-    report["gcc_by_zone"] = {}
-    for zone_no, name in conn.execute(text("SELECT zone_no, name FROM zones WHERE snapshot_id = :s ORDER BY zone_no"),
-                                      dict(s=s)).all():
-        report["gcc_by_zone"][name] = _coverage(conn, s, f"""
-            SELECT c.h3, c.geom FROM h3_cells c JOIN cell_features f USING (snapshot_id, h3)
-            WHERE c.snapshot_id = {s} AND c.res = 9 AND f.scoreable AND c.zone_no = {zone_no}""")
+        WHERE c.snapshot_id = {s} AND c.res = 9 AND f.scoreable"""
+    zones = conn.execute(text("SELECT zone_no, name FROM zones WHERE snapshot_id = :s ORDER BY zone_no"),
+                         dict(s=s)).all()
 
     # Fringe ring: within 10 km of GCC, inside the clip box, not GCC, not sea. Cells are built
     # on the fly (the snapshot grid only covers the service area).
@@ -81,10 +78,19 @@ def run(conn: Connection, s: int) -> dict:
                                                           list(h3.cell_to_boundary(c)) + [h3.cell_to_boundary(c)[0]]) + "))")
                   for c in cells])
     conn.execute(text("CREATE INDEX ON t_ring USING gist (geom); ANALYZE t_ring"))
-    report["fringe_ring_10km"] = _coverage(conn, s, "SELECT h3, geom FROM t_ring")
-    report["fringe_near_fringe_stores_2km"] = _coverage(conn, s, f"""
+    near_stores = f"""
         SELECT DISTINCT r.h3, r.geom FROM t_ring r JOIN stores st ON st.snapshot_id = {s} AND st.zone = 'CHN'
-        WHERE ST_DWithin(st.geom::geography, ST_Centroid(r.geom)::geography, 2000)""")
+        WHERE ST_DWithin(st.geom::geography, ST_Centroid(r.geom)::geography, 2000)"""
+
+    # Same metrics for each building source, side by side.
+    for source in ("osm_buildings", "ml_buildings"):
+        report[source] = {
+            "gcc_all": _coverage(conn, s, scoreable, source),
+            "gcc_by_zone": {name: _coverage(conn, s, f"{scoreable} AND c.zone_no = {zone_no}", source)
+                            for zone_no, name in zones},
+            "fringe_ring_10km": _coverage(conn, s, "SELECT h3, geom FROM t_ring", source),
+            "fringe_near_fringe_stores_2km": _coverage(conn, s, near_stores, source),
+        }
 
     report["landuse_coverage_gcc_pct"] = round(conn.execute(text("""
         SELECT 100 * ST_Area(ST_Intersection(ST_Union(l.geom), sa.geom)::geography) / ST_Area(sa.geom::geography)

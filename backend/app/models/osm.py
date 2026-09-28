@@ -36,6 +36,21 @@ class OsmBuilding(Base):
     geom = mapped_column(Geometry("POINT", srid=4326), nullable=False)
 
 
+class MlBuilding(Base):
+    """ML-derived building footprints (Microsoft Global ML Building Footprints), kept apart from
+    OSM: many OSM buildings in India were imported from such datasets, so merging would double
+    count. Provenance `observed (ML-derived)`."""
+    __tablename__ = "ml_buildings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    snapshot_id: Mapped[int] = mapped_column(snapshot_fk(), index=True)
+    source: Mapped[str] = mapped_column(String(32))            # e.g. ms_global_ml_2026_02
+    confidence: Mapped[float | None] = mapped_column(Float)    # NULL where the source says -1 (unknown)
+    height_m: Mapped[float | None] = mapped_column(Float)
+    footprint_m2: Mapped[float] = mapped_column(Float)
+    geom = mapped_column(Geometry("POINT", srid=4326), nullable=False)
+
+
 class OsmLanduse(Base):
     __tablename__ = "osm_landuse"
 
@@ -73,6 +88,8 @@ class CellFeature(Base):
     h3: Mapped[str] = mapped_column(String(16), primary_key=True)
     building_count: Mapped[int] = mapped_column(Integer)
     building_footprint_m2: Mapped[float] = mapped_column(Float)
+    ml_building_count: Mapped[int] = mapped_column(Integer)
+    ml_building_footprint_m2: Mapped[float] = mapped_column(Float)
     residential_share: Mapped[float] = mapped_column(Float)
     commercial_share: Mapped[float] = mapped_column(Float)
     blocking_share: Mapped[float] = mapped_column(Float)      # sea/water/beach/airport/industrial/...
