@@ -484,6 +484,27 @@ Phase 6 split: **6a** = tasks, save-first properties, validation, duplicates, ph
   services and services enqueue jobs. Services enqueue on `queue.DEFAULT_QUEUE`, which the test
   suite points at the test queue so the live worker never evaluates test data.
 
+## Phase 7a decisions (BD Executive mobile flow)
+
+- **Scout tasks start from a report**: the manager's Create scout task panel sits on the report
+  page and carries the report's cells + hotspots, so the executive's task map shows exactly what
+  was analysed, with the reason per hotspot and a directions link.
+- **Pin first, then the form**: GPS when allowed; if denied or unavailable the form says so and
+  falls back to tapping the map (framed on the task area, not all of GCC). Every pin is checked
+  live via `/reference/locate` (outside GCC / water → shown before submit) and prefills locality,
+  pincode, ward and zone. Rent shows ₹/sq ft against the illustrative band as a hint, never a block.
+- **Drafts on the device**: the form autosaves to localStorage once it has a pin or a label
+  (empty drafts are not kept); the draft's client id is the submit id, so a retried submit
+  returns the saved property instead of a duplicate (Core rule 6 applied to M2).
+- **Duplicates are the executive's call**: a flagged property shows the candidate with
+  Same property / Different property. A merged entry gets a short page pointing to the original
+  instead of a stale evaluation card.
+- **Photos** load through an authenticated blob fetch (the API requires the bearer token, so a
+  plain `<img src>` can't be used).
+- **List endpoint returns the latest outcome + score** (one max-version join), so My properties
+  and the 7b board need no per-row requests.
+- **Phones**: the header nav gets its own row under the brand + role switcher.
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

@@ -81,7 +81,6 @@ export default function MapView({ grid, serviceArea, stores, selected, onCellCli
       setReady(true)
     })
     map.current = m
-    container.current.__map = m // debugging hook (inspect the live map from the console)
     return () => m.remove()
   }, [])
 
