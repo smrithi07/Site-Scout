@@ -12,6 +12,10 @@ class NotFound(Exception):
     pass
 
 
+class SelectionError(Exception):
+    """An area selection that can't be analysed as given; the message says why and what to do."""
+
+
 class Conflict(Exception):
     """The request is valid but the entity's current state doesn't allow it (e.g. retrying a job
     that isn't failed)."""
@@ -33,3 +37,7 @@ def register(app: FastAPI) -> None:
     @app.exception_handler(Conflict)
     async def _conflict(_: Request, exc: Conflict) -> JSONResponse:
         return JSONResponse({"detail": str(exc)}, status_code=409)
+
+    @app.exception_handler(SelectionError)
+    async def _selection(_: Request, exc: SelectionError) -> JSONResponse:
+        return JSONResponse({"detail": str(exc)}, status_code=422)

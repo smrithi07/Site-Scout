@@ -1,6 +1,6 @@
 # Savo SiteScout config. Every snapshot records `version`. Bump it on ANY change below.
 # Weights/thresholds/radii/freshness/caps are filled in as each phase needs them (see docs/DESIGN.md).
-version: "0.5.0"
+version: "0.6.0"
 
 region:
   name: Greater Chennai Corporation
@@ -72,5 +72,34 @@ jobs:
   stale_after_seconds: 30      # no heartbeat for this long → worker presumed dead → job re-queued
   max_attempts: 3              # re-queues after lost heartbeats before the job is failed for good
 
+selection:
+  # Counted in score cells (res 9, ~0.1 km² each). Floor ≈ one selection cell; cap ≈ 60 km².
+  min_score_cells: 7
+  max_score_cells: 600
+  point_radius_m: 750        # extent for a locality that has only a point (labelled approximate)
+
 scoring:
+  # Factor weights (docs/DESIGN.md §5). Renormalised over the factors actually available.
+  weights: {demand: 30, anchors: 20, competition: 20, cannibalisation: 15, accessibility: 15}
   max_missing_weight_fraction: 0.40   # above this: facts only, no rating
+  min_scoreable_cells: 5              # fewer scoreable cells than this → insufficient data
+  min_scoreable_share: 0.3            # …or less than this share of the selection is scoreable
+  factor_min_coverage: 0.5            # a factor counts at area level if ≥ this share of cells have it
+  # Walking-distance smoothing: count features in the cell plus k rings of neighbours
+  # (k=1 ≈ 350 m radius, k=2 ≈ 650 m).
+  neighbourhood_k: {anchors: 1, competition: 2, accessibility: 1}
+  anchor_weights: {transit: 1.5, market: 1.5, school: 1.0, hospital: 1.0, office: 0.5}
+  # Demand = ML building footprint area. Treated as missing (not zero) where a cell has streets
+  # but no footprints at all — unmapped, not empty (the Phase 2 gate safety net).
+  demand_missing_if: {ml_buildings_below: 1, local_road_m_at_least: 300}
+  cannibalisation:
+    max_distance_m: 5000       # beyond this, distance to the nearest store no longer matters
+    radius_m: 1500             # "stores within" fact
+    stores_max_age_days: 30    # older Stores cache → factor excluded (docs/DESIGN.md §8)
+  accessibility: {main_road_multiplier: 2.0}
+  rating_bands: [{min: 70, label: Strong fit}, {min: 50, label: Moderate fit}, {min: 0, label: Weak fit}]
+  confidence:
+    quality: {observed: 1.0, observed_lower_bound: 0.7, proxy: 0.6, mock: 0.3, missing: 0.0}
+    high: 0.75
+    medium: 0.5
+  hotspots: {count: 5, min_separation_k: 1}

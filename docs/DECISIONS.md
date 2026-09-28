@@ -293,6 +293,43 @@ Phase 3 was split at the user's request: **3a** = config versioning + users/role
 - **Worker poll interval moved from settings to `config/sitescout.yaml` (`jobs:`)** with the
   other tunables (config 0.5.0).
 
+## Phase 4a decisions (M1 analysis)
+
+Phase 4 was split at the user's request: **4a** = selection, scoring, report job, versioning,
+compare with the template narrative; **4b** = LLM adapters, validator, fallback chain (needs keys).
+
+- **Selection** resolves to res-9 score cells whose centre lies in the chosen geometry; selection
+  cells (res 8) are their parents. Caps in score cells: min 7 (≈ one map cell), max 600 (≈ 60 km²,
+  big enough for any single zone). Edits (add/remove) happen on selection cells. The `area_key` is
+  a hash of the final score-cell set, so the same area → the same key → v1, v2, ….
+- **Factor raw values** (all config): demand = Microsoft footprint m² in the cell (proxy);
+  anchors = weighted transit/market/school/hospital/office within 1 ring (~350 m); competition =
+  OSM grocery shops within 2 rings (~650 m, lower bound, inverted); cannibalisation = metres to the
+  nearest operational Savomart, capped at 5 km; accessibility = road metres within 1 ring, main
+  roads ×2. Neighbour rings count features in masked cells too (a bus stop by a factory still
+  serves the street next to it); percentiles use scoreable cells only.
+- **Normalisation = mid-rank percentile across all scoreable GCC cells**, so ties (e.g. the many
+  zero-competitor cells) share a value instead of ranking arbitrarily, and scores compare across
+  areas. The city model is ~0.3 s to build and cached per (snapshot, config version) in-process.
+- **Missing, not zero, at two levels**: a cell's demand is `missing` when it has ≥ 300 m of local
+  street but no footprints (the Phase 2 safety net); a factor counts at area level only if ≥ 50%
+  of scoreable cells have it. Missing weight is renormalised away; > 40% missing → facts only.
+  < 5 scoreable cells or < 30% of the selection scoreable → insufficient data (e.g. the airport).
+- **Confidence** = weight-averaged data quality (observed 1.0, lower-bound 0.7, proxy 0.6,
+  mock 0.3, missing 0): High ≥ 0.75, Medium ≥ 0.5.
+- **Hotspots**: top cell scores, no two within 1 ring of each other, each with its two strongest
+  contributing factors as the "why".
+- **Reports are immutable at the DB level** (trigger rejects UPDATE always). DELETE is allowed only
+  with `SET LOCAL sitescout.purge = 'on'` — used by test teardown and once to purge a report
+  created during a dev defect (audited as `purged`). App code never sets it.
+- **Runner fix found by this phase**: step outputs are persisted as JSON, but later steps used to
+  receive the raw Python object (e.g. `Decimal`), so a first run and a resumed run could see
+  different values. Later steps now receive the JSON round-trip of what was persisted. Postgres
+  `numeric` results are converted to floats at the source.
+- **First results** (snapshot 10, config 0.6.0): T Nagar (600017) 65.8 Moderate fit / High
+  confidence: strong anchors (89) and demand (68), weak competition (16). Tondiarpet zone 51.7:
+  close to existing Savomart stores (cannibalisation 10) with sparse OSM anchors.
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

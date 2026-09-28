@@ -121,8 +121,8 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–3b are done;
-  **Phase 4** (M1 backend) is next.
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–4a are done;
+  **Phase 4b** (LLM narrative) is next.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -156,5 +156,9 @@ frontend to hide a field.
   job_steps, worker (`app/jobs/`: claim with SKIP LOCKED, heartbeat thread, reaper, lease check
   before each step commit, retry resumes at the failed step). New job kinds register their steps
   in `app/jobs/registry.py`.
-- **Next step: Phase 4** — M1 backend (selection → cells, scoring, provenance, hotspots, fact
-  sheet, LLM adapter + validator + fallback chain).
+- Phase 4a done: `services/selection.py` (pincode/locality/cells → score cells, caps, edits),
+  `services/scoring.py` (citywide percentile, provenance, renormalise, facts-only, confidence,
+  hotspots), `services/area_report.py` (facts, save, compare), `llm/factsheet.py` +
+  `llm/template.py`, `area_report` job, immutable `area_reports` (trigger; test cleanup uses
+  `SET LOCAL sitescout.purge = 'on'`), `/areas/*` endpoints (BD Manager).
+- **Next step: Phase 4b** — Gemini/Groq adapters, validator, fallback chain. Needs LLM keys.

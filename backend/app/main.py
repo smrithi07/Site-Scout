@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
-from app.api import auth, config, jobs, reference
+from app.api import areas, auth, config, jobs, reference
 from app.core import errors
 from app.core.config import config_sha256, load_config, register_config
 from app.core.db import engine
@@ -32,6 +32,7 @@ app.include_router(auth.router)
 app.include_router(config.router)
 app.include_router(reference.router)
 app.include_router(jobs.router)
+app.include_router(areas.router)
 
 
 @app.get("/health")

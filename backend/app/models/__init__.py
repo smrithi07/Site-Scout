@@ -13,8 +13,10 @@ from app.models.reference import (
     Ward,
     Zone,
 )
+from app.models.reports import AreaReport
 
 __all__ = [
-    "AuditEvent", "Base", "CellFeature", "ConfigVersion", "Job", "JobStep", "User", "MlBuilding", "OsmBuilding", "OsmLanduse", "OsmPoi", "RoadSegment", "DataSnapshot", "DataSource", "H3Cell", "Locality", "Pincode",
-    "PostOffice", "ServiceArea", "Store", "Ward", "Zone",
+    "AreaReport", "AuditEvent", "Base", "CellFeature", "ConfigVersion", "DataSnapshot", "DataSource",
+    "H3Cell", "Job", "JobStep", "Locality", "MlBuilding", "OsmBuilding", "OsmLanduse", "OsmPoi", "Pincode",
+    "PostOffice", "RoadSegment", "ServiceArea", "Store", "User", "Ward", "Zone",
 ]

@@ -28,7 +28,7 @@ def normalize(name: str) -> str:
     return " ".join(_SUFFIX.sub(" ", s).split())
 
 
-def _geometry_basis(kind: str, in_area: bool, pin_source: str | None) -> dict:
+def geometry_basis(kind: str, in_area: bool, pin_source: str | None) -> dict:
     if not in_area:
         return {"basis": None, "source": None, "approximate": None, "label": "outside service area"}
     if kind == "zone":
@@ -77,7 +77,7 @@ def search(db: Session, q: str) -> tuple[int, list[dict]]:
         rows = [r for r in rows if r["score"] >= cfg["min_score_with_exact_match"]]
     candidates, seen = [], set()
     for r in rows:
-        geometry = _geometry_basis(r["kind"], r["in_service_area"], r["pin_source"])
+        geometry = geometry_basis(r["kind"], r["in_service_area"], r["pin_source"])
         # "Velachery" (pincode) and "Velacheri" (post office) both resolve to pincode 600042's
         # shape — offering both is noise, so keep only the best-scoring one per geometry.
         key = {"pincode": ("pincode", r["pincode"]), "ward": ("ward", r["ward_no"]),

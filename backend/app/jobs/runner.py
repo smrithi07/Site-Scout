@@ -84,7 +84,8 @@ def execute(job_id: int, worker_id: str, heartbeat_seconds: float) -> str:
                 log.exception("job %s: step %s failed", job_id, name)
                 _fail(job_id, idx, name, worker_id, exc)
                 return "failed"
-            outputs[name] = out
+            # Later steps see exactly what was persisted — the same value a resumed run would load.
+            outputs[name] = json.loads(_json(out))
 
         _succeed(job_id, worker_id)
         return "succeeded"
