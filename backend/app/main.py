@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
+from app.api import reference
+from app.core import errors
 from app.core.config import load_config
 from app.core.db import engine
 from app.core.settings import get_settings
@@ -14,6 +16,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+errors.register(app)
+app.include_router(reference.router)
 
 
 @app.get("/health")

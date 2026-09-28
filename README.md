@@ -10,6 +10,8 @@ Requires Docker Desktop.
 ```bash
 cp .env.example .env   # then fill in values
 make up                # postgis, api, worker, web
+make migrate           # create/upgrade the schema
+make ingest            # build a data snapshot from data/raw (offline)
 make health            # {"status":"ok", ...}
 ```
 

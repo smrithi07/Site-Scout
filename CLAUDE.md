@@ -121,8 +121,8 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–0c are done;
-  **Phase 1** (schema + reference data) is next.
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–1 are done;
+  **Phase 2** (OSM ingest + features + gate) is next.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -141,4 +141,7 @@ frontend to hide a field.
   dropped, Voronoi fallback planned instead.
 - Phase 0c done: Docker Compose (PostGIS + api + worker + web) up via `make up`, `/health`
   checks DB/PostGIS/config, branded React shell, `data/MANIFEST.md`. Docker Desktop confirmed.
-- **Next step: Phase 1** — schema + reference data (see `docs/PHASES.md`).
+- Phase 1 done: Alembic schema, `make ingest` builds a versioned data snapshot (wards, zones,
+  service area, post offices, multi-part pincodes, stores, H3 grid, locality index),
+  `/localities/search`, `/reference/pincodes/{pin}`, `/reference/snapshot`.
+- **Next step: Phase 2** — OSM ingest + features + the data-quality gate (see `docs/PHASES.md`).

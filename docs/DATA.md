@@ -66,7 +66,9 @@ datameet polygons against the 120 unique Chennai pincodes in the `bharatpin` dir
 - 1 polygon pincode (`600029`) isn't in the directory at all — probably a defunct/merged pincode;
   ignore.
 
-**Decision**: use the datameet polygons for the ~68 pincodes they cover, tagged
+**Refined in Phase 1** (see `docs/DECISIONS.md` §Phase 1): a pincode can now have *both* a datameet part and a Voronoi extension part, each tagged separately — the original either/or rule left 21% of GCC in no pincode.
+
+**Original decision**: use the datameet polygons for the ~68 pincodes they cover, tagged
 `source: datameet_2013` (label in UI: "approximate, 2013–14 boundaries"). For the remaining ~53
 pincodes, build Voronoi cell extents from the directory's post-office points, clipped to the
 2022 GCC ward outline, tagged `source: voronoi_approx`. Every pincode geometry in the DB records
@@ -130,7 +132,7 @@ building/landuse coverage check runs — don't decide it from the pincode-polygo
 
 ## Open items before Phase 1 can fully close
 
-1. Verify the 11th Chennai store's `store_code` from the raw JSON (cosmetic — no design impact).
+1. ~~Verify the 11th Chennai store's `store_code`~~ — **closed in Phase 1**: (captured by the ingest; kept in the git-ignored store file).
 2. Decide, once Phase 2's OSM coverage numbers exist: metro fringe in or out.
 3. Decide, once Phase 2's OSM coverage numbers exist: Bhuvan land-use cross-check needed or not.
 4. Confirm whether the census 2011 join (2008 155-ward map) is worth the ~2-3 hours of cleanup —

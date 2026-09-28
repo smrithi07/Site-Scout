@@ -112,6 +112,41 @@ which were fixed before locking:
 - **Code is bind-mounted** into api/worker/web with reload, so later phases never need a rebuild
   unless dependencies change. `data/` and `config/` are mounted read-only.
 
+## Phase 1 decisions (schema + reference data)
+
+- **One data snapshot per ingest build.** `python -m ingest build` creates a new `data_snapshots`
+  row, runs every loader (each step commits on its own), and marks it `ready`. A failure marks it
+  `failed` with the step name. Old snapshots are never modified; analysis reads the latest
+  `ready` one. Every raw file's sha256, size, mtime and row count goes into `data_sources`.
+  Phase 2 adds OSM steps to the same build (re-running the reference steps takes ~3s).
+- **Pincode geometry is multi-part, not either/or.** Measured: the original rule (datameet
+  polygon *or* Voronoi) left **89 km² (21%) of GCC in no pincode**, 43 km² of it in
+  Sholinganallur zone, because datameet's 2013 shapes stop at the old city limits while their
+  post offices' neighbourhoods extend into the expanded GCC. Now each pincode has one row per
+  source: a `datameet_2013` part (clipped to GCC) and/or a `voronoi_approx` part (Voronoi cells
+  of its own in-area post offices, minus datameet coverage). Result: 80 pincodes, 29 of them
+  datameet + a Voronoi extension, **99.8% of GCC covered, 0 overlap**. Provenance stays per
+  part, and the API returns both so the map can shade them differently. Voronoi fragments
+  under 0.05 km² are dropped as slivers (config).
+- **8 in-area pincodes still have no geometry.** Their post offices sit inside another
+  pincode's 2013 polygon (boundary drift or re-assignment). They fall back to the ward
+  polygon, per the geometry-priority rule. Not chased further.
+- **Service area = union of the 200 wards (2022), with digitising slivers filled.** The raw
+  union had 2,150 holes: 2,149 slivers (0.1 km² in total) and **one real 5.9 km² enclave at
+  13.007 N, 80.194 E (St. Thomas Mount cantonment, not GCC)**. Holes under 0.1 km² are filled
+  (config); the cantonment stays out. GCC = 432.2 km².
+- **Ward tagging uses the nearest ward**, so points in a filled sliver and border res-8 cells
+  (whose centre falls just outside GCC) still get a ward/zone. 0 untagged cells.
+- **Only 141 of the 306 Chennai-pincode post offices are inside GCC.** The rest (Tambaram,
+  Avadi, Pallavaram…) are kept in the locality index flagged "outside service area", so a
+  search says so instead of "not found". Relevant to the metro-fringe gate.
+- **Locality search**: pg_trgm similarity over a normalised name (lowercase, punctuation and
+  B.O/S.O/H.O suffixes stripped); an exact 6-digit query matches the pincode. Candidates that
+  resolve to the same geometry are collapsed (e.g. "Velachery" pincode and "Velacheri" post
+  office). Each candidate carries pincode/ward/zone plus the geometry it would resolve to and
+  that geometry's approximation label. OSM place names join the index in Phase 2.
+- **Reference endpoints have no role checks yet**; auth arrives in Phase 3.
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality
@@ -126,5 +161,5 @@ which were fixed before locking:
    `docker run --rm hello-world` was the agreed checkpoint and was never confirmed as run.
 4. **Gemini/Groq API keys**: not yet created as of handoff. Needed before Phase 4 (M1 backend,
    which wires up the LLM adapter) can be checkpointed end-to-end.
-5. **11th Chennai store's `store_code`**: cut off in a chat paste, cosmetic only — will surface
+5. ~~**11th Chennai store's `store_code`**~~ — **closed in Phase 1** (captured by the ingest).: cut off in a chat paste, cosmetic only — will surface
    naturally once the Stores ingest script runs against the saved JSON file.

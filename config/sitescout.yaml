@@ -1,10 +1,21 @@
 # Savo SiteScout config. Every snapshot records `version`. Bump it on ANY change below.
 # Weights/thresholds/radii/freshness/caps are filled in as each phase needs them (see docs/DESIGN.md).
-version: "0.1.0"
+version: "0.2.0"
 
 region:
   name: Greater Chennai Corporation
-  metro_fringe: false   # decided at the Phase 2 gate
+  service_area: gcc_wards_2022   # union of the 200 GCC ward polygons
+  metro_fringe: false            # decided at the Phase 2 gate
+  min_hole_km2: 0.1              # smaller holes between wards are digitising slivers → filled
+  min_pincode_part_km2: 0.05     # smaller Voronoi fragments are edge slivers → dropped
+
+grid:
+  score_res: 9    # ~0.1 km² — features, scoring, hotspots
+  select_res: 8   # ~0.7 km² — what a BD Manager clicks on
+
+localities:
+  min_score: 0.3        # trigram similarity floor for a search candidate
+  max_results: 10
 
 scoring:
   max_missing_weight_fraction: 0.40   # above this: facts only, no rating

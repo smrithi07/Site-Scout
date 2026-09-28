@@ -1,4 +1,4 @@
-.PHONY: up down logs ps health test psql
+.PHONY: up down logs ps health test psql migrate ingest
 
 up:
 	docker compose up -d --build
@@ -21,4 +21,9 @@ test:
 psql:
 	docker compose exec db sh -c 'psql -U $$POSTGRES_USER -d $$POSTGRES_DB'
 
-# migrate / ingest / seed targets arrive in Phases 1–3.
+migrate:
+	docker compose exec api alembic upgrade head
+
+# Offline ingest: builds a new data snapshot from data/raw (never runs at request time).
+ingest:
+	docker compose exec api python -m ingest build
