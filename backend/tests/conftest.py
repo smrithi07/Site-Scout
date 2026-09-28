@@ -41,6 +41,7 @@ def purge_scouting_test_data() -> None:
         # studies of test properties, and test captures (notes start with 'TEST')
         sids = conn.execute(text("SELECT id FROM studies WHERE property_id = ANY(:i)"), dict(i=ids)).scalars().all()
         conn.execute(text("DELETE FROM study_segments WHERE study_id = ANY(:s)"), dict(s=sids))
+        conn.execute(text("DELETE FROM survey_units WHERE study_id = ANY(:s)"), dict(s=sids))
         conn.execute(text("DELETE FROM segment_captures WHERE study_id = ANY(:s) OR notes LIKE 'TEST%'"), dict(s=sids))
         conn.execute(text("DELETE FROM studies WHERE id = ANY(:s)"), dict(s=sids))
         for table in ("property_notes", "property_photos", "property_evaluations", "follow_ups"):

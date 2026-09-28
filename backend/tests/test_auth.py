@@ -19,6 +19,7 @@ ACCESS = [
     ("GET", "/tasks", {Role.BD_MANAGER, Role.BD_EXECUTIVE}),
     ("GET", "/properties", {Role.BD_MANAGER, Role.BD_EXECUTIVE}),
     ("GET", "/studies", {Role.BD_MANAGER, Role.SURVEY_MANAGER}),
+    ("GET", "/my/units", {Role.SURVEY_EXECUTIVE}),
 ]
 
 

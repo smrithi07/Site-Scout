@@ -153,7 +153,8 @@ def test_overrides_need_reasons_and_the_survey_manager_has_the_final_say(client)
     assert plan("full_survey", "x" * 5).status_code == 409                    # stale study version
     trail = client.get(f"/audit?entity_type=study&entity_id={s['id']}", headers=BDM).json()
     assert [(e["action"], e["reason"]) for e in trail] == [
-        ("requested", "indicative read only, budget is tight"), ("planned", "coverage too thin to reuse only")]
+        ("requested", "indicative read only, budget is tight"), ("units_generated", "plan (reuse_and_fill)"),
+        ("planned", "coverage too thin to reuse only")]
 
 
 def test_survey_manager_never_sees_commercial_fields(client):

@@ -6,19 +6,35 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import Role, require_roles
 from app.core.db import get_db
-from app.models import Property, StudySegment, User
-from app.schemas.studies import CancelStudy, PlanDecision, StudyRequest, study_response
-from app.services import properties, studies
+from app.models import Property, Study, StudySegment, User
+from app.schemas.properties import property_response
+from app.schemas.studies import (
+    CancelStudy,
+    PlanDecision,
+    Regenerate,
+    StudyRequest,
+    UnitAssign,
+    UnitMerge,
+    UnitMove,
+    UnitSplit,
+    study_response,
+    unit_response,
+)
+from app.services import properties, studies, units
 
 router = APIRouter(prefix="/studies", tags=["studies"])
+unit_router = APIRouter(tags=["studies"])
 managers = require_roles(Role.BD_MANAGER, Role.SURVEY_MANAGER)
+survey_manager = require_roles(Role.SURVEY_MANAGER)
 
 
 def _out(db: Session, study, user: User) -> dict:
     count, length = db.execute(select(func.count(), func.coalesce(func.sum(StudySegment.length_m), 0))
                                .where(StudySegment.study_id == study.id, StudySegment.to_survey)).one()
-    return study_response(study, db.get(Property, study.property_id), user.role,
-                          survey={"segments": count, "length_m": round(length)})
+    out = study_response(study, db.get(Property, study.property_id), user.role,
+                         survey={"segments": count, "length_m": round(length)})
+    out["units"] = units.summary(db, study.id)        # BD Manager: status only; the unit map is the Survey Manager's
+    return out
 
 
 @router.get("/preview")
@@ -66,3 +82,67 @@ def cancel_study(study_id: int, body: CancelStudy, user: User = Depends(require_
     study = studies.cancel(db, user, study_id, body.version, body.reason)
     db.commit()
     return _out(db, study, user)
+
+
+# --- survey units (Survey Manager edits/assigns; each edit re-validates one-segment-one-unit) ---
+
+def _plan(db: Session, study_id: int, user: User) -> dict:
+    db.commit()
+    study = db.get(Study, study_id)
+    names = dict(db.execute(select(User.id, User.name)).all())
+    return {"study": _out(db, study, user),
+            "units": [unit_response(u, {"assignee_name": names.get(u.assignee_id)}) for u in units.units_of(db, study_id)]}
+
+
+@router.get("/{study_id}/units")
+def list_units(study_id: int, user: User = Depends(survey_manager), db: Session = Depends(get_db)) -> dict:
+    studies.visible(db, user, study_id)
+    return _plan(db, study_id, user)
+
+
+@router.post("/{study_id}/units/generate")
+def regenerate(study_id: int, body: Regenerate, user: User = Depends(survey_manager), db: Session = Depends(get_db)) -> dict:
+    units.regenerate(db, user, study_id, body.version, body.reason)
+    return _plan(db, study_id, user)
+
+
+@router.post("/{study_id}/units/move")
+def move_segments(study_id: int, body: UnitMove, user: User = Depends(survey_manager), db: Session = Depends(get_db)) -> dict:
+    units.move(db, user, study_id, body.version, body.segment_ids, body.to_unit_id)
+    return _plan(db, study_id, user)
+
+
+@router.post("/{study_id}/units/{unit_id}/split")
+def split_unit(study_id: int, unit_id: int, body: UnitSplit, user: User = Depends(survey_manager),
+               db: Session = Depends(get_db)) -> dict:
+    units.split(db, user, study_id, body.version, unit_id, body.segment_ids)
+    return _plan(db, study_id, user)
+
+
+@router.post("/{study_id}/units/merge")
+def merge_units(study_id: int, body: UnitMerge, user: User = Depends(survey_manager), db: Session = Depends(get_db)) -> dict:
+    units.merge(db, user, study_id, body.version, body.unit_ids)
+    return _plan(db, study_id, user)
+
+
+@router.post("/{study_id}/units/{unit_id}/assign")
+def assign_unit(study_id: int, unit_id: int, body: UnitAssign, user: User = Depends(survey_manager),
+                db: Session = Depends(get_db)) -> dict:
+    units.assign(db, user, study_id, body.version, unit_id, body.assignee_id)
+    return _plan(db, study_id, user)
+
+
+@unit_router.get("/my/units")
+def my_units(user: User = Depends(require_roles(Role.SURVEY_EXECUTIVE)), db: Session = Depends(get_db)) -> list[dict]:
+    """The survey executive's units today. The property is just a label (PropertyLabel view)."""
+    out = []
+    for u in units.mine(db, user):
+        study = db.get(Study, u.study_id)
+        out.append(unit_response(u, {"property": property_response(db.get(Property, study.property_id), user.role)}))
+    return out
+
+
+@unit_router.get("/units/{unit_id}/segments")
+def unit_segments(unit_id: int, user: User = Depends(require_roles(Role.SURVEY_MANAGER, Role.SURVEY_EXECUTIVE)),
+                  db: Session = Depends(get_db)) -> dict:
+    return units.unit_geojson(db, units.visible_unit(db, user, unit_id))

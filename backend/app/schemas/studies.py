@@ -56,6 +56,45 @@ class CancelStudy(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
 
 
+class UnitMove(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    version: int                                   # study version (all unit edits lock the study plan)
+    segment_ids: list[str] = Field(min_length=1, max_length=1000)
+    to_unit_id: int
+
+
+class UnitSplit(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    version: int
+    segment_ids: list[str] = Field(min_length=1, max_length=1000)
+
+
+class UnitMerge(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    version: int
+    unit_ids: list[int] = Field(min_length=2, max_length=50)
+
+
+class UnitAssign(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    version: int
+    assignee_id: int | None                        # None = unassign (only before any capture)
+
+
+class Regenerate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    version: int
+    reason: str = Field(min_length=3, max_length=500)
+
+
+UNIT_FIELDS = ("id", "study_id", "label", "status", "assignee_id", "assigned_at", "segment_count", "length_m",
+               "minutes", "walk_minutes", "pieces")
+
+
+def unit_response(u: Any, extra: dict | None = None) -> dict:
+    return {**{k: getattr(u, k) for k in UNIT_FIELDS}, **(extra or {})}
+
+
 _FIELDS = ("id", "kind", "status", "property_id", "lat", "lon", "radius_m", "segment_count", "total_length_m",
            "reuse", "requested_mode", "request_reason", "planned_mode", "plan_reason", "planned_at",
            "cancel_reason", "snapshot_id", "config_version", "created_at", "updated_at", "version")

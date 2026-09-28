@@ -10,7 +10,7 @@
 from datetime import datetime
 
 from geoalchemy2 import Geometry
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -19,6 +19,9 @@ from app.models.base import Base
 
 class Study(Base):
     __tablename__ = "studies"
+    # one open study per property (declared here so autogenerate keeps the hand-written index)
+    __table_args__ = (Index("uq_studies_open_per_property", "property_id", unique=True,
+                            postgresql_where=text("status NOT IN ('complete', 'cancelled')")),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     kind: Mapped[str] = mapped_column(String(16), server_default="property")  # property (area studies: later)
@@ -57,7 +60,29 @@ class StudySegment(Base):
     reused_capture_id: Mapped[int | None] = mapped_column(ForeignKey("segment_captures.id"))
     capture_age_days: Mapped[float | None] = mapped_column(Float)
     to_survey: Mapped[bool] = mapped_column(Boolean, server_default="false")
-    unit_id: Mapped[int | None] = mapped_column(Integer)   # survey unit (Phase 8b)
+    # The one-segment-one-unit rule: a segment row holds at most one unit by construction; the
+    # service re-validates after every edit that every to_survey segment has one and no other does.
+    unit_id: Mapped[int | None] = mapped_column(ForeignKey("survey_units.id"), index=True)
+
+
+class SurveyUnit(Base):
+    """A contiguous, workload-balanced set of a study's to-survey segments, assignable to one survey
+    executive. Estimates are recomputed after every edit (services/partition.estimate)."""
+    __tablename__ = "survey_units"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    study_id: Mapped[int] = mapped_column(ForeignKey("studies.id"), index=True)
+    label: Mapped[str] = mapped_column(String(16))                       # U1, U2, …
+    status: Mapped[str] = mapped_column(String(16), server_default="draft")  # draft | assigned | submitted
+    assignee_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
+    assigned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    segment_count: Mapped[int] = mapped_column(Integer, server_default="0")
+    length_m: Mapped[float] = mapped_column(Float, server_default="0")
+    minutes: Mapped[float] = mapped_column(Float, server_default="0")        # estimated workload
+    walk_minutes: Mapped[float] = mapped_column(Float, server_default="0")   # of which walking between segments
+    pieces: Mapped[int] = mapped_column(Integer, server_default="1")         # disconnected parts (1 = one walk)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class SegmentCapture(Base):

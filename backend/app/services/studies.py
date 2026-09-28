@@ -30,7 +30,7 @@ from app.core.config import load_config
 from app.core.errors import Conflict, Forbidden, NotFound, Unprocessable
 from app.core.locking import update_versioned
 from app.models import Property, Study, StudySegment, User
-from app.services import pipeline
+from app.services import pipeline, units
 from app.services.snapshots import active_snapshot
 
 MODES = ("reuse_and_fill", "reuse_only", "full_survey")
@@ -214,12 +214,15 @@ def plan(db: Session, actor: User, study_id: int, version: int, mode: str, reaso
         db.execute(update(StudySegment).where(StudySegment.study_id == study.id, StudySegment.segment_id == s["segment_id"])
                    .values(reuse_state=s["reuse_state"], reused_capture_id=s["reused_capture_id"],
                            capture_age_days=s["capture_age_days"], to_survey=to_survey(s["reuse_state"], mode)))
+    db.flush()
+    db.refresh(study)
+    built = units.generate(db, actor, study, reason=f"plan ({mode})")
     audit.record(db, actor=actor, entity_type="study", entity_id=study.id, action="planned", from_state=old,
                  to_state="planned",
                  reason=(reason or "").strip() or f"confirmed the requested reuse mode ({mode})",
                  details={"mode": mode, "requested_mode": study.requested_mode, "override": needs_reason,
                           "coverage_pct": summary["coverage_pct"], "message": summary["message"],
-                          "to_survey": sum(to_survey(s["reuse_state"], mode) for s in segs)})
+                          "to_survey": sum(to_survey(s["reuse_state"], mode) for s in segs), "units": len(built)})
     db.flush()
     db.refresh(study)
     return study

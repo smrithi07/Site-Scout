@@ -37,6 +37,7 @@ app.include_router(jobs.router)
 app.include_router(areas.router)
 app.include_router(scouting.router)
 app.include_router(studies.router)
+app.include_router(studies.unit_router)
 
 
 @app.get("/health")

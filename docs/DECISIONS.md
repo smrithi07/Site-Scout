@@ -557,6 +557,40 @@ Phase 6 split: **6a** = tasks, save-first properties, validation, duplicates, ph
 - The BD Manager's Request-study button + coverage preview dialog is UI work for Phase 9
   (`GET /studies/preview` and `pipeline.study` in the property response are ready for it).
 
+## Phase 8b decisions (survey units)
+
+- **Partitioning benchmarked, not assumed** (4 real catchments at full survey + the gaps-only
+  study #52; both methods scored by the same nearest-neighbour walk estimate):
+
+  | Method | worst unit ÷ mean | walking share | pieces / unit | time |
+  |---|---|---|---|---|
+  | DFS order cut into equal chunks | 1.15–1.38 | 5–20% | 2.0–7.9 | ≤16 ms |
+  | Balanced region growing | 1.06–1.11 | 9–13% | 3.2–4.3 | ≤170 ms |
+  | **Region growing + smoothing (chosen)** | 1.12–1.17, every unit 121–180 min | 5–9% | 1.5–2.1 | ≤1.3 s |
+
+  Growing: k = ⌈total ÷ 150 min⌉ seeds by farthest-point network distance; the least-loaded unit
+  repeatedly takes the nearest unassigned to-survey segment along the road graph. Smoothing hands a
+  unit's stray pieces to a unit they touch when both stay within 120–180 min by the same
+  estimate the UI shows. All catchment segments are walkable; only to-survey ones are assigned.
+- **Workload** = length ÷ 70 m/min + 6 min per segment (5-min count + form) + walking between the
+  unit's segments. Parameters in `studies.units` (config 0.11.0). Gaps-only studies stay in
+  many pieces by nature (the gaps are scattered); the walking time is counted in their minutes.
+- **One segment, one unit**: `study_segments.unit_id` holds at most one unit by construction;
+  after every generate / move / split / merge the service re-validates in the same transaction
+  that every to-survey segment has a unit, no reused segment does, no segment points at another
+  study's unit and no unit is empty — any violation is a 422 and nothing is saved (tested by
+  corrupting the plan directly and making an edit).
+- **Edits lock the whole study plan** (`studies.version`): one Survey Manager edits a plan at a
+  time; a stale edit is 409. Estimates are recomputed for every unit an edit touches.
+- **Units are generated at planning** (and can be regenerated with a reason) until the first unit
+  is assigned; from then on the plan is fixed and only edits apply. The first assignment moves
+  the study to in progress and the property to study in progress (via the study workflow).
+- **Reassign keeps captured data** (captures belong to the segment); unassign is refused once a
+  unit has captures; merging units held by different executives is refused. Captured segments
+  can't be moved.
+- **Survey executive** sees `/my/units` (in-progress studies only) with the property as
+  `{id, label}`, and the segment map of their own units only.
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality
