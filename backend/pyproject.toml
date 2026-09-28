@@ -1,0 +1,23 @@
+[project]
+name = "sitescout"
+version = "0.1.0"
+description = "Savo SiteScout — expansion intelligence for Savomart"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi~=0.141",
+    "uvicorn[standard]~=0.54",
+    "sqlalchemy~=2.1",
+    "psycopg[binary]~=3.3",
+    "geoalchemy2~=0.20",
+    "alembic~=1.20",
+    "pydantic-settings~=2.15",
+    "pyyaml~=6.0",
+    "h3~=4.5",
+    "httpx~=0.28",
+]
+
+[project.optional-dependencies]
+dev = ["pytest~=9.1"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

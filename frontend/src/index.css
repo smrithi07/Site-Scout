@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+/* Brand tokens (mandatory). Yellow is for CTAs/highlights only — always pair it with dark text. */
+@theme {
+  --color-brand: #782b90;
+  --color-brand-dark: #5a2069;
+  --color-brand-light: #f3e9f6;
+  --color-accent: #fff200;
+  --color-ink: #1c1022;
+}

@@ -1,0 +1,10 @@
+# Savo SiteScout config. Every snapshot records `version`. Bump it on ANY change below.
+# Weights/thresholds/radii/freshness/caps are filled in as each phase needs them (see docs/DESIGN.md).
+version: "0.1.0"
+
+region:
+  name: Greater Chennai Corporation
+  metro_fringe: false   # decided at the Phase 2 gate
+
+scoring:
+  max_missing_weight_fraction: 0.40   # above this: facts only, no rating

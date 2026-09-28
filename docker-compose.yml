@@ -1,0 +1,56 @@
+name: sitescout
+
+x-backend: &backend
+  build: ./backend
+  env_file: .env
+  depends_on:
+    db:
+      condition: service_healthy
+  volumes:
+    - ./backend:/app
+    - ./config:/config:ro
+    - ./data:/data:ro
+
+services:
+  db:
+    # Official postgis/postgis is amd64-only; this is the multi-arch (native arm64) build of
+    # the same Dockerfiles. See docs/DECISIONS.md.
+    image: imresamu/postgis:17-3.5
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    <<: *backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+
+  worker:
+    <<: *backend
+    command: python -m app.jobs.worker
+
+  web:
+    build: ./frontend
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
