@@ -272,12 +272,14 @@ def visible(db: Session, user: User, study_id: int) -> Study:
     return _get(db, study_id)
 
 
-def list_for(db: Session, user: User, status: str | None = None) -> list[Study]:
+def list_for(db: Session, user: User, status: str | None = None, property_id: int | None = None) -> list[Study]:
     if user.role not in (Role.BD_MANAGER, Role.SURVEY_MANAGER):
         return []
     q = select(Study).order_by(Study.id.desc())
     if status:
         q = q.where(Study.status == status)
+    if property_id is not None:
+        q = q.where(Study.property_id == property_id)
     return list(db.scalars(q))
 
 

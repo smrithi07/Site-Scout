@@ -11,6 +11,8 @@ import ScoreBreakdown, { fmt } from '../../components/ScoreBreakdown'
 import { useMapLayers } from '../areas/AnalysePage'
 import { pinOverlay } from '../scouting/mapLayers'
 import { Card, OutcomeBadge, Photo, STAGE_LABEL } from '../scouting/shared'
+import RequestStudyDialog from '../studies/RequestStudyDialog'
+import StudyCard from '../studies/StudyCard'
 import { FollowUpDialog, StageDialog } from './Dialogs'
 import History from './History'
 
@@ -84,8 +86,8 @@ function QuickCard({ p }) {
   )
 }
 
-function NextStep({ p, onMove, onFollowUp }) {
-  const { moves, follow_up: fu } = p.pipeline
+function NextStep({ p, onMove, onFollowUp, onStudy }) {
+  const { moves, follow_up: fu, study } = p.pipeline
   const open = (p.follow_ups ?? []).filter((f) => f.status === 'open')
   return (
     <Card title="Next step">
@@ -99,9 +101,11 @@ function NextStep({ p, onMove, onFollowUp }) {
         ))}
         <button onClick={onFollowUp} disabled={!fu.allowed} title={fu.allowed ? '' : fu.why}
                 className="rounded-md bg-accent px-3 py-2 text-sm font-semibold text-ink disabled:opacity-40">Ask executive…</button>
+        {study.allowed && (
+          <button onClick={onStudy} className="rounded-md bg-brand px-3 py-2 text-sm font-semibold text-white">Request study…</button>
+        )}
       </div>
       {!fu.allowed && <p className="mt-1 text-xs opacity-60">Follow-up: {fu.why}</p>}
-      {p.stage === 'shortlisted' && <p className="mt-2 text-xs opacity-60">Catchment study requests arrive with M3.</p>}
       {(p.follow_ups ?? []).length > 0 && (
         <div className="mt-3 border-t pt-2">
           <h3 className="mb-1 text-xs font-semibold uppercase opacity-60">Follow-ups {open.length > 0 && `(${open.length} open)`}</h3>
@@ -221,7 +225,9 @@ export default function ReviewPage() {
       <div className="grid gap-3 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="min-w-0 space-y-3">
           <QuickCard p={p} />
-          <NextStep p={p} onMove={(to) => setDialog({ kind: 'move', to })} onFollowUp={() => setDialog({ kind: 'follow_up' })} />
+          <NextStep p={p} onMove={(to) => setDialog({ kind: 'move', to })} onFollowUp={() => setDialog({ kind: 'follow_up' })}
+                    onStudy={() => setDialog({ kind: 'study' })} />
+          <StudyCard propertyId={p.id} onChanged={refresh} />
           <Breakdown p={p} />
         </div>
         <div className="min-w-0 space-y-3">
@@ -256,6 +262,10 @@ export default function ReviewPage() {
       {dialog?.kind === 'move' && (
         <StageDialog property={p} to={dialog.to} onClose={() => setDialog(null)} onStale={() => prop.refetch()}
                      onDone={(updated) => { queryClient.setQueryData(['property', id], updated); done(`Moved to ${STAGE_LABEL(updated.stage)}.`) }} />
+      )}
+      {dialog?.kind === 'study' && (
+        <RequestStudyDialog property={p} onClose={() => setDialog(null)} onStale={() => prop.refetch()}
+                            onDone={(study) => { queryClient.invalidateQueries({ queryKey: ['studies'] }); done(`Study #${study.id} requested — ${study.survey.segments} lanes to survey. The Survey Manager plans it next.`) }} />
       )}
       {dialog?.kind === 'follow_up' && (
         <FollowUpDialog property={p} onClose={() => setDialog(null)} onStale={() => prop.refetch()}

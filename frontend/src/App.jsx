@@ -12,6 +12,7 @@ import PropertiesPage from './features/scouting/PropertiesPage'
 import PropertyForm from './features/scouting/PropertyForm'
 import PropertyPage from './features/scouting/PropertyPage'
 import TaskPage from './features/scouting/TaskPage'
+import StudyPage from './features/studies/StudyPage'
 
 function RequireUser({ children }) {
   const { user } = useAuth()
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="jobs/:id" element={guarded(<JobPage />)} />
         <Route path="tasks/:id" element={guarded(<TaskPage />)} />
         <Route path="pipeline" element={guarded(<BoardPage />)} />
+        <Route path="studies/:id" element={guarded(<StudyPage />)} />
         <Route path="properties" element={guarded(<PropertiesPage />)} />
         <Route path="properties/new" element={guarded(<PropertyForm />)} />
         <Route path="properties/:id" element={guarded(<PropertyPage />)} />

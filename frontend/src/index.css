@@ -8,3 +8,9 @@
   --color-accent: #fff200;
   --color-ink: #1c1022;
 }
+
+/* The app shell is one screen tall and <main> scrolls; body matches it for overscroll. */
+body {
+  background: var(--color-brand-light);
+  color: var(--color-ink);
+}

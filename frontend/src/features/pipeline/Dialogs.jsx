@@ -16,7 +16,7 @@ const PRESETS = {
 }
 const FOLLOW_UP_KINDS = [['photos', 'More photos'], ['revisit', 'Revisit the site'], ['rent_check', 'Check the rent'], ['other', 'Something else']]
 
-function Modal({ title, onClose, children }) {
+export function Modal({ title, onClose, children }) {
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
@@ -25,7 +25,7 @@ function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 md:items-center" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}
-           className="w-full max-w-md rounded-t-xl bg-white p-4 shadow-xl md:rounded-xl">
+           className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-xl bg-white p-4 shadow-xl md:rounded-xl">
         <h2 className="text-lg font-bold">{title}</h2>
         {children}
       </div>

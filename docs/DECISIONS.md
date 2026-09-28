@@ -591,6 +591,25 @@ Phase 6 split: **6a** = tasks, save-first properties, validation, duplicates, ph
 - **Survey executive** sees `/my/units` (in-progress studies only) with the property as
   `{id, label}`, and the segment map of their own units only.
 
+## Phase 9a decisions (study request + reuse decision UI)
+
+- **One reuse vocabulary** (`features/studies/reuse.jsx`): the four segment states with fixed
+  colours, the three modes with one-line explanations, a length-weighted coverage bar plus the
+  design's one-line message and the oldest reused age. The BD dialog, the Survey Manager's page and
+  the BD study card all render the API's summary through it, so they can't disagree.
+- **The request dialog previews before writing** (`/studies/preview`), and says up front when a
+  reason is required and why (override; below the reuse threshold). The UI mirrors the server's
+  rule only to explain it — the server still enforces it.
+- **The Survey Manager's page leads with the evidence** (coverage + catchment map: to-survey
+  lanes drawn thick) and the decision shows what BD asked for and why, so an override is informed.
+  Confirming re-checks coverage and generates units; the unit table is read-only until 9b.
+- **BD sees status only**: the study card shows coverage, both decisions with reasons (flagged
+  when the Survey Manager changed the mode), lanes to survey, unit counts and hours, and cancel.
+- **App shell fix**: the shell is one screen tall, so `<main>` is now the scroll container and
+  `body` carries the brand background — long pages no longer run past the background.
+- **Test isolation**: study tests moved to a site no demo property uses (Perambur), with a guard
+  that fails loudly if non-test captures appear there (the demo seed around #52 had broken them).
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

@@ -121,8 +121,8 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–8b are done (M1
-  and M2 complete, M3 backend: studies, reuse, units); **Phase 9** (Survey Manager UI) is next.
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–9a are done (M1
+  and M2 complete, M3 backend + request/plan UI); **Phase 9b** (unit map + progress UI) is next.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -212,5 +212,9 @@ frontend to hide a field.
   with the one-segment-one-unit check after every edit, assign → study in progress), `survey_units`
   (migration 0011), unit endpoints under `/studies/{id}/units`, `/my/units`, `/units/{id}/segments`.
   Config `studies.units` (0.11.0).
-- Next step: **Phase 9** — Survey Manager UI (request inbox, reuse decision, unit map edits,
-  assignment, progress) + the BD Manager's Request-study dialog.
+- Phase 9a done: `frontend/src/features/studies/` — `reuse.jsx` (states, modes, CoverageBar,
+  catchment overlays), `RequestStudyDialog` + `StudyCard` (BD review page), `InboxPage` (Survey
+  Manager home), `StudyPage` (`/studies/:id`: coverage, catchment map, final-say plan, units table).
+  `<main>` is the scroll container. Study tests run at a dedicated site (Perambur).
+- Next step: **Phase 9b** — unit map editing (move / split / merge), assignment, progress board,
+  survey executive's units list.

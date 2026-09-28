@@ -12,7 +12,7 @@ const NAV = {
     { to: '/', label: 'My tasks' },
     { to: '/properties', label: 'My properties' },
   ],
-  survey_manager: [],
+  survey_manager: [{ to: '/', label: 'Studies' }],
   survey_executive: [],
 }
 
@@ -43,7 +43,7 @@ export default function Layout() {
           <div className="ml-auto">{user && <RoleSwitcher />}</div>
         </div>
       </header>
-      <main className="min-h-0 flex-1">
+      <main className="min-h-0 flex-1 overflow-y-auto">
         <Outlet />
       </main>
     </div>

@@ -13,19 +13,27 @@ from app.core.db import engine
 from tests.conftest import headers, purge_scouting_test_data
 
 BDM, BDE, SM, SE = (headers(r) for r in (Role.BD_MANAGER, Role.BD_EXECUTIVE, Role.SURVEY_MANAGER, Role.SURVEY_EXECUTIVE))
-RANGANATHAN_ST = (13.0405, 80.2335)
+# A site no demo property uses: `make seed-captures` data elsewhere must not leak into these tests.
+STUDY_SITE = (13.1170, 80.2330)   # Perambur
 
 
 @pytest.fixture(autouse=True)
 def cleanup():
     purge_scouting_test_data()
+    with engine.connect() as conn:
+        foreign = conn.execute(text("""
+            SELECT count(*) FROM segment_captures
+            WHERE ST_DWithin(geom::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, 800)"""),
+            dict(lat=STUDY_SITE[0], lon=STUDY_SITE[1])).scalar()
+    assert foreign == 0, (f"{foreign} non-test captures near the study test site {STUDY_SITE} — move the site or "
+                          "purge them (make seed-captures ARGS=--purge)")
     yield
     purge_scouting_test_data()
 
 
 def shortlisted(client) -> dict:
     body = {"client_id": str(uuid.uuid4()), "label": f"TEST study shop {uuid.uuid4().hex[:6]}",
-            "lat": RANGANATHAN_ST[0], "lon": RANGANATHAN_ST[1], "monthly_rent": 120000, "rent_unit": "per_month",
+            "lat": STUDY_SITE[0], "lon": STUDY_SITE[1], "monthly_rent": 120000, "rent_unit": "per_month",
             "area_sqft": 1000, "owner_name": "Owner Secret", "owner_phone": "9999999999"}
     p = client.post("/properties", json=body, headers=BDE).json()
     for to in ("under_review", "shortlisted"):
@@ -81,6 +89,7 @@ def test_request_turns_the_catchment_into_segments_and_moves_the_property(client
     last = client.get(f"/properties/{p['id']}/history", headers=BDM).json()[-1]
     assert last["to_state"] == "study_requested" and last["details"]["via"] == "study"
     assert request(client, prop).status_code == 409               # one open study per property
+    assert [x["id"] for x in client.get(f"/studies?property_id={p['id']}", headers=BDM).json()] == [s["id"]]
 
 
 def test_only_the_bd_manager_requests_and_only_from_shortlisted(client):
@@ -88,7 +97,7 @@ def test_only_the_bd_manager_requests_and_only_from_shortlisted(client):
     for h in (BDE, SM, SE):
         assert request(client, p, h=h).status_code == 403
     scouted = client.post("/properties", headers=BDE, json={"client_id": str(uuid.uuid4()), "label": "TEST scouted",
-                                                            "lat": RANGANATHAN_ST[0], "lon": RANGANATHAN_ST[1]}).json()
+                                                            "lat": STUDY_SITE[0], "lon": STUDY_SITE[1]}).json()
     r = request(client, scouted)
     assert r.status_code == 409 and "shortlisted" in r.json()["detail"]
 

@@ -52,8 +52,9 @@ def request_study(body: StudyRequest, user: User = Depends(require_roles(Role.BD
 
 
 @router.get("")
-def list_studies(status: str | None = None, user: User = Depends(managers), db: Session = Depends(get_db)) -> list[dict]:
-    return [_out(db, s, user) for s in studies.list_for(db, user, status)]
+def list_studies(status: str | None = None, property_id: int | None = None, user: User = Depends(managers),
+                 db: Session = Depends(get_db)) -> list[dict]:
+    return [_out(db, s, user) for s in studies.list_for(db, user, status, property_id)]
 
 
 @router.get("/{study_id}")

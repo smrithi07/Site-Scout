@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import RoleSwitcher from '../../app/RoleSwitcher'
 import { ROLE_LABELS, useAuth } from '../../app/auth'
 import ExecHome from '../scouting/ExecHome'
+import InboxPage from '../studies/InboxPage'
 
 // What each persona will land on (docs/DESIGN.md §4). BD roles are built; survey roles arrive with M3.
 const HOMES = {
@@ -11,7 +12,6 @@ const HOMES = {
     cta: { to: '/areas/analyse', label: 'Analyse an area' },
     secondary: { to: '/pipeline', label: 'Review the pipeline' },
   },
-  survey_manager: { title: 'Study requests', body: 'The request inbox and unit planning arrive with M3.' },
   survey_executive: { title: 'My units today', body: 'Lane capture arrives with M3.' },
 }
 
@@ -27,6 +27,7 @@ export default function Home() {
     )
   }
   if (user.role === 'bd_executive') return <ExecHome />
+  if (user.role === 'survey_manager') return <InboxPage />
   const home = HOMES[user.role]
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
