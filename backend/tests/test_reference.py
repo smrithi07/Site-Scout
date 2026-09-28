@@ -33,6 +33,16 @@ def test_ambiguous_name_returns_several_candidates_not_a_guess():
     assert names == {"600011", "600012"}
 
 
+def test_exact_match_drops_weak_fuzzy_hits():
+    scores = [c["score"] for c in client.get("/localities/search", params={"q": "Perambur"}).json()["candidates"]]
+    assert scores[0] == 1.0 and min(scores) >= 0.5
+
+
+def test_no_exact_match_keeps_loose_floor():
+    scores = [c["score"] for c in client.get("/localities/search", params={"q": "Perambr"}).json()["candidates"]]
+    assert scores and max(scores) < 1.0
+
+
 def test_candidates_resolving_to_same_geometry_are_collapsed():
     pins = [c["pincode"] for c in client.get("/localities/search", params={"q": "Velachery"}).json()["candidates"]
             if c["geometry"]["basis"] == "pincode"]

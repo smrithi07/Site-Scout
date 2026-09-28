@@ -72,6 +72,9 @@ def search(db: Session, q: str) -> tuple[int, list[dict]]:
         ORDER BY score DESC, in_service_area DESC,
                  array_position(ARRAY['zone','ward','pincode','post_office'], kind), name
         LIMIT :lim"""), params).mappings().all()
+    # With an exact match present, weak fuzzy hits are noise; keep the loose floor only otherwise.
+    if rows and rows[0]["score"] >= 1.0:
+        rows = [r for r in rows if r["score"] >= cfg["min_score_with_exact_match"]]
     candidates, seen = [], set()
     for r in rows:
         geometry = _geometry_basis(r["kind"], r["in_service_area"], r["pin_source"])
