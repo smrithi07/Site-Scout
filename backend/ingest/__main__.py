@@ -1,6 +1,8 @@
 """Offline ingest CLI. Never imported by the API or worker at request time.
 
-    python -m ingest build    # new data snapshot with all reference data; marks it `ready`
+    python -m ingest build    # new data snapshot: reference data + OSM + cell features; marks it `ready`
+    python -m ingest gate     # Phase 2 data-quality report on the active snapshot (read-only)
+    python -m ingest prune    # delete `failed` snapshots and their partial rows
 
 Each build creates a fresh snapshot (old ones stay — saved reports point at them). Each step
 commits on its own; on failure the snapshot is marked `failed` with the step name and error.
@@ -14,8 +16,11 @@ from sqlalchemy import text
 
 from app.core.config import load_config
 from app.core.db import engine
+from ingest import gate as gate_report
+from ingest.features import build_cell_features
 from ingest.grid import build_grid
 from ingest.localities import build_localities
+from ingest.osm import load_osm
 from ingest.reference import (
     build_service_area,
     load_pincodes,
@@ -26,7 +31,7 @@ from ingest.reference import (
 )
 
 STEPS = [load_zones, load_wards, build_service_area, load_post_offices, load_pincodes,
-         load_stores, build_grid, build_localities]
+         load_stores, build_grid, load_osm, build_cell_features, build_localities]
 
 
 def build() -> int:
@@ -57,11 +62,24 @@ def build() -> int:
     return 0
 
 
+def gate() -> int:
+    with engine.begin() as conn:
+        s = conn.execute(text("SELECT max(id) FROM data_snapshots WHERE status = 'ready'")).scalar()
+        print(json.dumps(gate_report.run(conn, s), indent=2, default=float))
+    return 0
+
+
+def prune() -> int:
+    with engine.begin() as conn:
+        ids = conn.execute(text("DELETE FROM data_snapshots WHERE status = 'failed' RETURNING id")).scalars().all()
+    print(f"pruned failed snapshots: {sorted(ids) or 'none'}")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="python -m ingest")
-    parser.add_argument("command", choices=["build"])
-    parser.parse_args()
-    return build()
+    parser.add_argument("command", choices=["build", "gate", "prune"])
+    return {"build": build, "gate": gate, "prune": prune}[parser.parse_args().command]()
 
 
 if __name__ == "__main__":

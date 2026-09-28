@@ -147,6 +147,63 @@ which were fixed before locking:
   that geometry's approximation label. OSM place names join the index in Phase 2.
 - **Reference endpoints have no role checks yet**; auth arrives in Phase 3.
 
+## Phase 2 decisions (OSM ingest + features)
+
+- **OSM tooling: osmium-tool clip + pyosmium**, over osm2pgsql (Lua, fixed output tables to remap
+  into snapshots) and GDAL (weaker relation handling). Same libosmium multipolygon assembly as
+  osm2pgsql, but everything stays in the Python ingest. Measured: clip 558 MB → 22 MB in 5s;
+  parse + load 33s; 0 unassemblable geometries.
+- **Clip box includes the metro fringe** (79.95–80.36 E, 12.75–13.35 N) so the fringe could be
+  measured; per-cell features still cover only the service area.
+- **Sea polygon derived from `natural=coastline`** (OSM has no sea polygon): the clip box is split
+  along the merged coastline, and pieces touching the east edge are sea (505.7 km² in the box).
+- **Road segments**: configured road classes (no motorways/tracks/footpaths, no driveways/parking
+  aisles), split at every node shared with another road way. `segment_id = '<way_id>:<piece>'`,
+  unique per snapshot. 301,483 segments (126,640 touch GCC), median 50 m. Segments under 1 m
+  (duplicate-node artefacts) are dropped. The longest is 15 km, an elevated/bypass road with no
+  junctions; M3 clips segments to the catchment, so that's not a survey problem.
+- **Non-scoreable mask**: a cell is masked if sea/water/wetland/beach/aeroway/industrial/military
+  cover ≥ 50% of it, or it has 0 buildings and < 50 m of local street. Street length (not
+  buildings) is the emptiness test because OSM roads are far better mapped than buildings here.
+  847 of 3,838 cells masked (359 industrial, 159 wetland, 139 empty, 114 water, 27 military,
+  25 airport, 20 sea, 4 beach).
+- **Mask validation uses OSM's own named polygons as ground truth** (hand-picked coordinates
+  proved unreliable): Pallikaranai Marsh 87/87 cells masked, airport 22/23, Chennai Port 20/20,
+  CPCL 6/6, Ennore Thermal 9/9, Manali Fertilizers 13/13, Marina Beach 3/3, Ennore Creek 24/27;
+  the misses are edge cells that are majority land. The dense T Nagar core has 0 masked cells.
+  Masked cells have a median of 0–6 buildings vs 75 for scoreable cells; the built-up masked
+  cells are industrial estates (SIDCO, Nehru Nagar), whose buildings are sheds.
+- **Performance trap, fixed**: freshly inserted snapshot rows have no planner statistics, so the
+  per-cell spatial joins used the `snapshot_id` btree and scanned all 390k buildings per cell
+  (550s). `ANALYZE` after each bulk load → 5s. Full `make ingest` is now ~46s.
+- **OSM place names** (941 suburb/neighbourhood/locality/… names) joined the locality index.
+- **`python -m ingest prune`** deletes failed snapshots and their partial rows (cascade).
+
+### Phase 2 gate — measured (`make gate`)
+
+A "roaded" cell has ≥ 300 m of local street, so people clearly live there. It is **building-sparse**
+if OSM has < 10 buildings in it: the buildings exist but aren't mapped.
+
+| Area | Roaded cells | Building-sparse | Median buildings / roaded cell |
+|---|---|---|---|
+| GCC, all scoreable cells | 2,719 | 20.4% | 87 |
+| Central zones (Anna Nagar, Kodambakkam, Teynampet, Adyar, Ambattur, Alandur, Perunkudi, Valasarvakkam, Thiru-Vi-Ka Nagar) | — | 0.5–6.5% | 92–177 |
+| Royapuram / Madhavaram | 126 / 220 | 16.7% / 30.5% | 66 / 58 |
+| **Tondiarpet** | 143 | **52.4%** | **5** |
+| **Sholinganallur** | 268 | **52.2%** | **7** |
+| **Thiruvottriyur** | 101 | **88.1%** | **1** |
+| **Manali** | 118 | **94.9%** | **0** |
+| Metro fringe ring (10 km around GCC) | 4,111 | 70.4% | 0 |
+| Fringe, within 2 km of a Savomart store | 238 | 68.1% | 2 |
+
+Land-use polygons (any class) cover 29.3% of GCC.
+
+**Reading**: (1) the mask works on OSM alone → Bhuvan adds nothing for masking. (2) The fringe has
+almost no building data. (3) **OSM building density is not a usable demand proxy in the four
+northern/southern zones**, which is where several of Savomart's existing
+stores are. Scored naively, these zones would look like low demand purely because of missing
+mapping. Decision needed: see open question 6.
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality
@@ -161,5 +218,9 @@ which were fixed before locking:
    `docker run --rm hello-world` was the agreed checkpoint and was never confirmed as run.
 4. **Gemini/Groq API keys**: not yet created as of handoff. Needed before Phase 4 (M1 backend,
    which wires up the LLM adapter) can be checkpointed end-to-end.
-5. ~~**11th Chennai store's `store_code`**~~ — **closed in Phase 1** (captured by the ingest).: cut off in a chat paste, cosmetic only — will surface
+5. ~~**11th Chennai store's `store_code`**~~ — **closed in Phase 1** (captured by the ingest).
+6. **Demand proxy where OSM buildings are unmapped** (Phase 2 gate result). Options in the Phase
+   2 hand-off: flag under-mapped cells as `missing` demand and renormalize, fall back to street
+   density (`proxy`), or ingest an ML building-footprint dataset (Microsoft / Google Open Buildings).
+7. **Metro fringe and Bhuvan**: gate numbers above; recommendation is both out. Awaiting sign-off.: cut off in a chat paste, cosmetic only — will surface
    naturally once the Stores ingest script runs against the saved JSON file.

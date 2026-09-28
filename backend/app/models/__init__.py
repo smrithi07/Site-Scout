@@ -1,4 +1,5 @@
 from app.models.base import Base
+from app.models.osm import CellFeature, OsmBuilding, OsmLanduse, OsmPoi, RoadSegment
 from app.models.reference import (
     DataSnapshot,
     DataSource,
@@ -13,6 +14,6 @@ from app.models.reference import (
 )
 
 __all__ = [
-    "Base", "DataSnapshot", "DataSource", "H3Cell", "Locality", "Pincode",
+    "Base", "CellFeature", "OsmBuilding", "OsmLanduse", "OsmPoi", "RoadSegment", "DataSnapshot", "DataSource", "H3Cell", "Locality", "Pincode",
     "PostOffice", "ServiceArea", "Store", "Ward", "Zone",
 ]

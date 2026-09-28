@@ -37,7 +37,7 @@ def _geometry_basis(kind: str, in_area: bool, pin_source: str | None) -> dict:
         basis, source = "ward", "gcc_2022"
     elif pin_source:
         basis, source = "pincode", pin_source
-    elif kind == "post_office":
+    elif kind in ("post_office", "osm_place"):
         basis, source = "ward", "gcc_2022"
     else:
         basis, source = "point_radius", "point_radius"
@@ -70,7 +70,7 @@ def search(db: Session, q: str) -> tuple[int, list[dict]]:
             WHERE l.snapshot_id = :s AND {where}) c
         WHERE score >= :min
         ORDER BY score DESC, in_service_area DESC,
-                 array_position(ARRAY['zone','ward','pincode','post_office'], kind), name
+                 array_position(ARRAY['zone','ward','pincode','post_office','osm_place'], kind), name
         LIMIT :lim"""), params).mappings().all()
     # With an exact match present, weak fuzzy hits are noise; keep the loose floor only otherwise.
     if rows and rows[0]["score"] >= 1.0:

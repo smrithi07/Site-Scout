@@ -32,4 +32,5 @@ def build_grid(conn: Connection, s: int) -> dict:
         INSERT INTO h3_cells (snapshot_id, h3, res, parent_h3, area_km2, geom)
         VALUES (:s, :h3, :res, :parent, :km2, ST_SetSRID(ST_GeomFromText(:wkt), 4326))"""), rows)
     assign_nearest_ward(conn, s, "h3_cells", "ST_Centroid(t.geom)")
+    conn.execute(text("ANALYZE h3_cells"))
     return {f"h3_res{fine_res}_cells": len(fine), f"h3_res{coarse_res}_cells": len(coarse)}

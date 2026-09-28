@@ -1,5 +1,5 @@
 """Builds the local locality index (replaces live geocoding) from post offices, pincodes,
-wards and zones. Every entry carries pincode/ward/zone so search results can be disambiguated."""
+wards, zones and OSM place names. Every entry carries pincode/ward/zone so search results can be disambiguated."""
 from sqlalchemy import Connection, text
 
 from app.services.localities import normalize
@@ -32,11 +32,19 @@ def build_localities(conn: Connection, s: int) -> dict:
               FROM pincodes WHERE snapshot_id = :s GROUP BY pincode) q
         LEFT JOIN wards w ON w.snapshot_id = :s AND ST_Intersects(w.geom, q.pt)"""), p)
 
-    # Wards get the pincode their interior point sits in, as a disambiguation hint. Zones span
-    # many pincodes, so they get none.
+    # OSM place names (suburb/neighbourhood/...). Outside-GCC places keep ward_no NULL.
+    conn.execute(text("""
+        INSERT INTO localities (snapshot_id, name, name_norm, kind, pincode, ward_no, zone_no, geom)
+        SELECT DISTINCT ON (lower(o.name), o.geom) :s, o.name, '', 'osm_place', NULL, w.ward_no, w.zone_no, o.geom
+        FROM osm_pois o
+        LEFT JOIN wards w ON w.snapshot_id = :s AND ST_Intersects(w.geom, o.geom)
+        WHERE o.snapshot_id = :s AND o.category = 'place'"""), p)
+
+    # Wards and OSM places get the pincode their point sits in (a disambiguation hint, and the
+    # geometry an OSM place resolves to). Zones span many pincodes, so they get none.
     conn.execute(text("""
         UPDATE localities l SET pincode = q.pincode FROM pincodes q
-        WHERE l.snapshot_id = :s AND q.snapshot_id = :s AND l.kind = 'ward'
+        WHERE l.snapshot_id = :s AND q.snapshot_id = :s AND l.kind IN ('ward', 'osm_place')
           AND ST_Intersects(q.geom, l.geom)"""), p)
 
     rows = conn.execute(text("SELECT id, name, kind, pincode FROM localities WHERE snapshot_id = :s"), p).all()

@@ -4,7 +4,7 @@ a re-ingest creates a new snapshot."""
 from datetime import datetime
 
 from geoalchemy2 import Geometry
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, func
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -50,6 +50,7 @@ class ServiceArea(Base):
 
 class Zone(Base):
     __tablename__ = "zones"
+    __table_args__ = (Index("uq_zones_snapshot_zone", "snapshot_id", "zone_no", unique=True),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     snapshot_id: Mapped[int] = mapped_column(snapshot_fk(), index=True)
@@ -61,6 +62,7 @@ class Zone(Base):
 
 class Ward(Base):
     __tablename__ = "wards"
+    __table_args__ = (Index("uq_wards_snapshot_ward", "snapshot_id", "ward_no", unique=True),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     snapshot_id: Mapped[int] = mapped_column(snapshot_fk(), index=True)
@@ -90,6 +92,7 @@ class Pincode(Base):
     """One row per (pincode, source) part: a datameet 2013 polygon and/or a Voronoi part
     (whole shape where datameet lacks the pincode, or an extension where its 2013 shape stops short)."""
     __tablename__ = "pincodes"
+    __table_args__ = (Index("uq_pincodes_snapshot_pin_source", "snapshot_id", "pincode", "geom_source", unique=True),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     snapshot_id: Mapped[int] = mapped_column(snapshot_fk(), index=True)
@@ -103,6 +106,7 @@ class Pincode(Base):
 class Store(Base):
     """Every row the Stores API returned (all zones) — filtering is by geometry at query time."""
     __tablename__ = "stores"
+    __table_args__ = (Index("uq_stores_snapshot_code", "snapshot_id", "store_code", unique=True),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     snapshot_id: Mapped[int] = mapped_column(snapshot_fk(), index=True)
@@ -119,6 +123,8 @@ class Store(Base):
 class H3Cell(Base):
     """Res 9 = scoring grid, res 8 = selection grid (see docs/DESIGN.md §3)."""
     __tablename__ = "h3_cells"
+    __table_args__ = (Index("ix_h3_cells_snapshot_res", "snapshot_id", "res"),
+                      Index("ix_h3_cells_parent", "snapshot_id", "parent_h3"))
 
     snapshot_id: Mapped[int] = mapped_column(snapshot_fk(), primary_key=True)
     h3: Mapped[str] = mapped_column(String(16), primary_key=True)
@@ -131,14 +137,16 @@ class H3Cell(Base):
 
 
 class Locality(Base):
-    """Local search index (replaces live geocoding). OSM place names join it in Phase 2."""
+    """Local search index (replaces live geocoding)."""
     __tablename__ = "localities"
+    __table_args__ = (Index("ix_localities_name_trgm", "name_norm", postgresql_using="gin",
+                            postgresql_ops={"name_norm": "gin_trgm_ops"}),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     snapshot_id: Mapped[int] = mapped_column(snapshot_fk(), index=True)
     name: Mapped[str] = mapped_column(Text)
     name_norm: Mapped[str] = mapped_column(Text)
-    kind: Mapped[str] = mapped_column(String(16))  # post_office | pincode | ward | zone
+    kind: Mapped[str] = mapped_column(String(16))  # post_office | pincode | ward | zone | osm_place
     pincode: Mapped[str | None] = mapped_column(String(6))
     ward_no: Mapped[int | None] = mapped_column(Integer)
     zone_no: Mapped[int | None] = mapped_column(Integer)

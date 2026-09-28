@@ -1,4 +1,4 @@
-.PHONY: up down logs ps health test psql migrate ingest
+.PHONY: up down logs ps health test psql migrate ingest gate
 
 up:
 	docker compose up -d --build
@@ -27,3 +27,7 @@ migrate:
 # Offline ingest: builds a new data snapshot from data/raw (never runs at request time).
 ingest:
 	docker compose exec api python -m ingest build
+
+# Phase 2 data-quality gate report (read-only) on the active snapshot.
+gate:
+	docker compose exec api python -m ingest gate

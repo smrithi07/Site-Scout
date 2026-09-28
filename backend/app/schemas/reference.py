@@ -13,7 +13,7 @@ class GeometryBasis(BaseModel):
 class LocalityCandidate(BaseModel):
     id: int
     name: str
-    kind: str                  # post_office | pincode | ward | zone
+    kind: str                  # post_office | pincode | ward | zone | osm_place
     pincode: str | None
     ward_no: int | None
     zone_no: int | None

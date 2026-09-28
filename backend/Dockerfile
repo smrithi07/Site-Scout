@@ -6,6 +6,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# osmium-tool: clips the pinned Geofabrik extract to the Chennai metro box before ingest.
+RUN apt-get update && apt-get install -y --no-install-recommends osmium-tool \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install only the dependencies first so code edits don't bust the layer cache.
 COPY pyproject.toml .
 RUN python -c "import tomllib; d = tomllib.load(open('pyproject.toml', 'rb'))['project']; \

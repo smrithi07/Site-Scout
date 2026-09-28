@@ -1,6 +1,6 @@
 # Savo SiteScout config. Every snapshot records `version`. Bump it on ANY change below.
 # Weights/thresholds/radii/freshness/caps are filled in as each phase needs them (see docs/DESIGN.md).
-version: "0.2.1"
+version: "0.3.0"
 
 region:
   name: Greater Chennai Corporation
@@ -17,6 +17,47 @@ localities:
   min_score: 0.3                    # trigram similarity floor for a search candidate
   min_score_with_exact_match: 0.5   # stricter floor once an exact (1.0) match exists
   max_results: 10
+
+osm:
+  extract: raw/osm/southern-zone-260927.osm.pbf   # under /data; pinned, md5-verified
+  # Clip box: GCC plus the metro fringe (Avadi, Poonamallee, Tambaram) so the fringe can be
+  # measured at the Phase 2 gate. lon_min, lat_min, lon_max, lat_max.
+  bbox: [79.95, 12.75, 80.36, 13.35]
+  # Roads that become survey segments. Motorways, tracks and footpaths are not survey lanes.
+  road_classes: [trunk, trunk_link, primary, primary_link, secondary, secondary_link,
+                 tertiary, tertiary_link, unclassified, residential, living_street, pedestrian, service]
+  service_exclude: [driveway, parking_aisle, drive-through, emergency_access]
+  main_road_classes: [trunk, primary, secondary, tertiary]
+  local_road_classes: [residential, living_street, unclassified]
+  # POI categories: first match wins. "*" = any value.
+  poi_categories:
+    competitor: {shop: [supermarket, convenience, grocery, greengrocer, general, deli, dairy, frozen_food]}
+    transit:    {highway: [bus_stop], public_transport: [platform, station], railway: [station, halt],
+                 amenity: [bus_station]}
+    school:     {amenity: [school, college, university, kindergarten]}
+    hospital:   {amenity: [hospital, clinic]}
+    market:     {amenity: [marketplace], shop: [mall, department_store]}
+    office:     {office: ["*"]}
+  # Land-use classes from polygons. "sea" is derived from natural=coastline, not listed here.
+  landuse_classes:
+    residential: {landuse: [residential]}
+    commercial:  {landuse: [commercial, retail]}
+    industrial:  {landuse: [industrial]}
+    water:       {natural: [water], landuse: [reservoir, basin], waterway: [riverbank]}
+    wetland:     {natural: [wetland]}
+    beach:       {natural: [beach, sand]}
+    aeroway:     {aeroway: [aerodrome]}
+    military:    {landuse: [military]}
+    green:       {leisure: [park, nature_reserve], landuse: [forest, grass, recreation_ground], natural: [wood]}
+  place_types: [suburb, neighbourhood, locality, quarter, village, hamlet, town]
+
+mask:
+  # A score cell is non-scoreable if these classes cover at least `min_blocking_share` of it…
+  blocking_classes: [sea, water, wetland, beach, aeroway, industrial, military]
+  min_blocking_share: 0.5
+  # …or it has no buildings AND almost no local streets (empty land, not just unmapped buildings —
+  # roads are far better mapped than buildings in Chennai OSM).
+  empty_max_local_road_m: 50
 
 scoring:
   max_missing_weight_fraction: 0.40   # above this: facts only, no rating

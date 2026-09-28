@@ -10,6 +10,7 @@ x-backend: &backend
     - ./backend:/app
     - ./config:/config:ro
     - ./data:/data:ro
+    - ./data/processed:/data/processed   # ingest scratch (clipped OSM extract), git-ignored
 
 services:
   db:
