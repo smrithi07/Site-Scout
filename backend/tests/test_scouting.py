@@ -1,19 +1,16 @@
 """Phase 6a checkpoint: bad pins and duplicates are handled correctly, executives see only their own
 properties, wrong roles get 403, stale edits get 409, photos are optional and flagged when missing."""
-import shutil
 import uuid
-from pathlib import Path
 
 import pytest
 from sqlalchemy import text
 
 from app.core.auth import Role
 from app.core.db import SessionLocal, engine
-from app.core.settings import get_settings
 from app.jobs import queue
 from app.jobs.worker import run_once
 from app.models import AreaReport, User
-from tests.conftest import USER_IDS, headers
+from tests.conftest import USER_IDS, headers, purge_scouting_test_data
 
 BDM, BDE = headers(Role.BD_MANAGER), headers(Role.BD_EXECUTIVE)
 PONDY_BAZAAR = (13.0418, 80.2341)   # T Nagar, inside GCC
@@ -22,18 +19,7 @@ PONDY_BAZAAR = (13.0418, 80.2341)   # T Nagar, inside GCC
 @pytest.fixture(autouse=True)
 def cleanup():
     yield
-    with engine.begin() as conn:
-        ids = conn.execute(text("SELECT id FROM properties WHERE label LIKE 'TEST %'")).scalars().all()
-        conn.execute(text("DELETE FROM property_notes WHERE property_id = ANY(:i)"), dict(i=ids))
-        conn.execute(text("DELETE FROM property_photos WHERE property_id = ANY(:i)"), dict(i=ids))
-        conn.execute(text("UPDATE properties SET duplicate_of = NULL WHERE id = ANY(:i)"), dict(i=ids))
-        conn.execute(text("DELETE FROM properties WHERE id = ANY(:i)"), dict(i=ids))
-        conn.execute(text("DELETE FROM scout_tasks WHERE title LIKE 'TEST %'"))
-        conn.execute(text("SET LOCAL sitescout.purge = 'on'"))
-        conn.execute(text("DELETE FROM area_reports WHERE job_id IN (SELECT id FROM jobs WHERE queue = 'test')"))
-        conn.execute(text("DELETE FROM jobs WHERE queue = 'test'"))
-    for i in ids:
-        shutil.rmtree(Path(get_settings().upload_dir) / "properties" / str(i), ignore_errors=True)
+    purge_scouting_test_data()
 
 
 def prop(label: str | None = None, lat: float = PONDY_BAZAAR[0], lon: float = PONDY_BAZAAR[1], **extra) -> dict:

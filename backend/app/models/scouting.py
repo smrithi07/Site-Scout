@@ -77,11 +77,54 @@ class Property(Base):
     duplicate_candidates: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"))
     warnings: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"))
     missing_fields: Mapped[list] = mapped_column(JSONB, server_default=text("'[]'::jsonb"))
-    evaluation_status: Mapped[str] = mapped_column(String(16), server_default="not_started")
+    evaluation_status: Mapped[str] = mapped_column(String(16), server_default="not_started")  # pending | current | failed
+    latest_job_id: Mapped[int | None] = mapped_column(BigInteger)  # latest evaluation job (no FK: jobs are pruned)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     version: Mapped[int] = mapped_column(Integer, server_default="1")
     geom = mapped_column(Geometry("POINT", srid=4326), nullable=False)
+
+
+class PropertyEvaluation(Base):
+    """Immutable evaluation version (Core rule 2): v1 on onboarding, v2… after edits, config changes
+    or (M3) a completed study. A trigger rejects UPDATE, and DELETE outside `sitescout.purge`."""
+    __tablename__ = "property_evaluations"
+    __table_args__ = (Index("uq_property_evaluations_version", "property_id", "version", unique=True),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    property_version: Mapped[int] = mapped_column(Integer)      # the property row version evaluated
+    trigger: Mapped[str] = mapped_column(String(24))             # created | edited | manual | study_complete
+    outcome: Mapped[str] = mapped_column(String(16))             # Strong Fit | Consider | Weak Fit | Needs Info
+    score: Mapped[float | None] = mapped_column(Float)
+    confidence: Mapped[str | None] = mapped_column(String(8))
+    hard_flags: Mapped[list] = mapped_column(JSONB)
+    risks: Mapped[list] = mapped_column(JSONB)
+    factors: Mapped[list] = mapped_column(JSONB)
+    completeness: Mapped[dict] = mapped_column(JSONB)
+    inputs: Mapped[dict] = mapped_column(JSONB)                  # property fields as evaluated
+    snapshot_id: Mapped[int] = mapped_column(ForeignKey("data_snapshots.id"))
+    config_version: Mapped[str] = mapped_column(String(32))
+    job_id: Mapped[int | None] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FollowUp(Base):
+    """Manager → executive request (more photos, a revisit, a rent check). The executive's response
+    returns the property to Under Review — the only stage change an executive can cause."""
+    __tablename__ = "follow_ups"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    property_id: Mapped[int] = mapped_column(ForeignKey("properties.id"), index=True)
+    requested_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    assignee_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))                # photos | revisit | rent_check | other
+    message: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(16), server_default="open")  # open | responded | withdrawn
+    response: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class PropertyNote(Base):

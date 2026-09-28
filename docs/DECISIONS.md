@@ -450,6 +450,40 @@ Phase 6 split: **6a** = tasks, save-first properties, validation, duplicates, ph
   illustrative rent band — used to prefill the form and by the validator.
 - **Rent bands are mock** (`mock_rent_bands` in config; see `data/MANIFEST.md`).
 
+## Phase 6b decisions (evaluation + pipeline)
+
+- **Site-level measures use H3 rings**, not an exact radius: the pin's cell + 2 rings (≈ 600 m;
+  the design asks for 500–600 m) for demand, the M1 ring measures for competition (~650 m) and
+  accessibility (~350 m). The same measure for every scoreable cell is the citywide distribution,
+  so percentiles are consistent with M1 and cost nothing extra (cached on the city model).
+  Cannibalisation is the exception: the exact distance from the pin to the nearest operational
+  store, because the 400 m hard flag must be precise.
+- **Factors** (weights from design §6): site demand 25 (proxy), competition 15 (lower bound),
+  cannibalisation 15, rent affordability 15 (**mock** — the entered rent is real but the band it's
+  positioned in is illustrative, so the factor is honestly labelled mock and lowers confidence),
+  accessibility 10, visibility/frontage 10 (self-reported; poor/fair/good → 20/60/100, frontage
+  10–20 ft → 0–100), area opportunity 10 (derived: the M1 score of the pin's cell).
+- **Completeness is a gate**: missing rent or area → Needs Info (score still shown, marked
+  provisional); > 40% of weight missing → Needs Info. **Hard flag** (Savomart within 400 m) caps
+  the outcome one level and says so ("capped from Consider to Weak Fit by hard flag").
+- **Risks are rules** with id, severity, evidence: R-CANNIBAL, R-DATA (high); R-RENT-HIGH,
+  R-RENT-UNVERIFIED, R-COMPETITION, R-DUPLICATE, R-LANDUSE, R-VISIBILITY (medium); R-ROAD-NARROW,
+  R-ACCESS, R-PARKING, R-GPS (low). Sorted by severity; the review card shows the top three.
+- **Evaluations are immutable versions** (DB trigger, same rule as reports): v1 on onboarding,
+  v2… after any real edit ("edited"), a manual re-run, or (M3) a completed study. The `load` step
+  freezes the property's fields, so an edit mid-job gets its own next version; the property is
+  marked `current` only if nothing changed since `load`.
+- **Pipeline rules** live in `services/pipeline.py`: BD Manager only; reason + version on every
+  move (409 on a stale version — tested with two moves on one version); illegal jumps refused with
+  the allowed list; study stages reserved for M3's Request study; reject → reopen allowed.
+- **Follow-up loop**: the manager's request moves the property to `needs_follow_up` and assigns it
+  to the onboarding executive (a manager-added property can't have one — 422). The executive's
+  response adds a note and the system returns the property to `under_review`, audited with the
+  executive as actor and `system_transition: true`. The manager moving it on withdraws open requests.
+- **Engineering**: the job registry is now lazy (`registry.kinds()`), because job modules import
+  services and services enqueue jobs. Services enqueue on `queue.DEFAULT_QUEUE`, which the test
+  suite points at the test queue so the live worker never evaluates test data.
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

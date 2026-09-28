@@ -1,6 +1,6 @@
 # Savo SiteScout config. Every snapshot records `version`. Bump it on ANY change below.
 # Weights/thresholds/radii/freshness/caps are filled in as each phase needs them (see docs/DESIGN.md).
-version: "0.8.0"
+version: "0.9.0"
 
 region:
   name: Greater Chennai Corporation
@@ -99,6 +99,18 @@ properties:
   critical_fields: [monthly_rent, area_sqft]   # missing → recommendation "Needs Info" (6b)
   photos: {max_bytes: 8000000, types: [image/jpeg, image/png, image/webp]}
 
+evaluation:
+  # Deterministic property evaluation (docs/DESIGN.md §6). Completeness is a gate, not a weight.
+  weights: {site_demand: 25, competition: 15, cannibalisation: 15, rent_affordability: 15,
+            accessibility: 10, visibility: 10, area_opportunity: 10}
+  site_ring_k: 2                     # pin's cell + 2 rings ≈ 600 m (design: 500–600 m site radius)
+  cannibalisation_hard_flag_m: 400   # operational Savomart closer than this → hard flag (caps outcome)
+  max_missing_weight_fraction: 0.40  # above this → Needs Info
+  outcome_bands: [{min: 70, label: Strong Fit}, {min: 50, label: Consider}, {min: 0, label: Weak Fit}]
+  visibility_scores: {poor: 20, fair: 60, good: 100}
+  frontage_ft: {low: 10, high: 20}   # ≤ low → 0, ≥ high → 100, linear between
+  risks: {competitors_many: 5, road_width_narrow_ft: 12}
+
 mock_rent_bands:
   # ILLUSTRATIVE ONLY (provenance: mock). ₹ per sq ft per month for small retail frontage, by GCC
   # zone group. Invented for the demo — not market data; labelled wherever it appears.
@@ -137,7 +149,8 @@ scoring:
   accessibility: {main_road_multiplier: 2.0}
   rating_bands: [{min: 70, label: Strong fit}, {min: 50, label: Moderate fit}, {min: 0, label: Weak fit}]
   confidence:
-    quality: {observed: 1.0, observed_lower_bound: 0.7, proxy: 0.6, mock: 0.3, missing: 0.0}
+    quality: {observed: 1.0, observed_self_reported: 0.8, derived: 0.8, observed_lower_bound: 0.7,
+              proxy: 0.6, mock: 0.3, missing: 0.0}
     high: 0.75
     medium: 0.5
   hotspots: {count: 5, min_separation_k: 1}

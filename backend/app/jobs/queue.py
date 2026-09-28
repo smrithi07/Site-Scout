@@ -7,18 +7,22 @@ from app.core import audit
 from app.core.db import engine
 from app.core.errors import Conflict, NotFound
 from app.core.locking import update_versioned
-from app.jobs.registry import KINDS
+from app.jobs.registry import kinds
 from app.models import Job, JobStep, User
 
 
-def enqueue(db: Session, kind: str, payload: dict, actor: User | None, queue: str = "default") -> Job:
+DEFAULT_QUEUE = "default"  # the test suite points this at "test" so the live worker never sees test jobs
+
+
+def enqueue(db: Session, kind: str, payload: dict, actor: User | None, queue: str | None = None) -> Job:
     """Adds the job and its pending steps to `db` (caller commits)."""
-    if kind not in KINDS:
+    queue = queue or DEFAULT_QUEUE
+    if kind not in kinds():
         raise ValueError(f"unknown job kind {kind!r}")
     job = Job(kind=kind, queue=queue, payload=payload, created_by=actor.id if actor else None)
     db.add(job)
     db.flush()
-    db.add_all(JobStep(job_id=job.id, idx=i, name=name) for i, (name, _) in enumerate(KINDS[kind]))
+    db.add_all(JobStep(job_id=job.id, idx=i, name=name) for i, (name, _) in enumerate(kinds()[kind]))
     audit.record(db, actor=actor, entity_type="job", entity_id=job.id, action="created",
                  to_state="queued", reason=f"{kind} requested", details={"queue": queue})
     db.flush()

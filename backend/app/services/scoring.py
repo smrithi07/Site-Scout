@@ -48,6 +48,7 @@ class CityModel:
     raw: dict[str, dict[str, float | None]]             # factor → h3 → raw (None = missing)
     sorted_values: dict[str, list[float]] = field(default_factory=dict)
     factor_notes: dict[str, str] = field(default_factory=dict)  # e.g. why a factor is missing everywhere
+    extras: dict = field(default_factory=dict)  # derived tables other engines cache here (e.g. site demand)
 
     def normalized(self, factor: str, cell: str) -> float | None:
         v = self.raw[factor].get(cell)

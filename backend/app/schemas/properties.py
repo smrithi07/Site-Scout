@@ -157,6 +157,22 @@ class NoteIn(BaseModel):
     text: str = Field(min_length=1, max_length=2000)
 
 
+class StageMove(BaseModel):
+    to: str
+    reason: str = Field(min_length=3, max_length=500)   # every move needs a reason (audited)
+    version: int                                        # optimistic lock
+
+
+class FollowUpIn(BaseModel):
+    kind: Literal["photos", "revisit", "rent_check", "other"]
+    message: str = Field(min_length=3, max_length=1000)
+    version: int
+
+
+class FollowUpResponse(BaseModel):
+    response: str = Field(min_length=3, max_length=2000)
+
+
 def property_response(record: Any, role: Role | str) -> dict:
     """Serialise a property for `role`. Unknown roles get nothing rather than a default view."""
     view = PROPERTY_VIEW[Role(role)]

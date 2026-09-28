@@ -82,6 +82,15 @@ def _duplicates(db: Session, p: Property) -> list[dict]:
     return [{k: (float(v) if k in ("distance_m", "similarity") else v) for k, v in r.items()} for r in rows]
 
 
+def request_evaluation(db: Session, p: Property, actor: User | None, trigger: str) -> int:
+    """Save first, evaluate after (Core rule 5): the property is already stored; the evaluation is a
+    job whose failure never touches it. Status is metadata, so this doesn't bump `version`."""
+    from app.jobs import queue  # local: jobs import services
+    job = queue.enqueue(db, "property_evaluation", {"property_id": p.id, "trigger": trigger}, actor)
+    db.execute(update(Property).where(Property.id == p.id).values(evaluation_status="pending", latest_job_id=job.id))
+    return job.id
+
+
 def visible(db: Session, user: User, property_id: int) -> Property:
     """Row-level access: BD Manager sees all; BD Executive sees their own. Survey roles reach
     properties only through studies (M3), with their own masked views."""
@@ -141,7 +150,9 @@ def create(db: Session, actor: User, data: PropertyCreate) -> tuple[Property, bo
             update_versioned(db, ScoutTask, task.id, task.version, status="in_progress", updated_at=text("now()"))
             audit.record(db, actor=actor, entity_type="scout_task", entity_id=task.id, action="status_changed",
                          from_state="open", to_state="in_progress", reason=f"first property onboarded (#{p.id})")
+    request_evaluation(db, p, actor, "created")
     db.flush()
+    db.refresh(p)
     return p, True
 
 
@@ -168,6 +179,7 @@ def update_fields(db: Session, actor: User, property_id: int, version: int, chan
     update_versioned(db, Property, p.id, version, **changed, **extra)
     audit.record(db, actor=actor, entity_type="property", entity_id=p.id, action="edited", reason="fields edited",
                  details={"fields": sorted(changed)})
+    request_evaluation(db, p, actor, "edited")  # edited after evaluation → re-evaluate (docs/DESIGN.md §8)
     db.flush()
     db.refresh(p)
     return p

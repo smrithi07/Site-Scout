@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.core import audit
 from app.core.db import SessionLocal, engine
 from app.jobs.context import StepContext
-from app.jobs.registry import KINDS
+from app.jobs.registry import kinds
 from app.models import Job, JobStep
 
 log = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ def execute(job_id: int, worker_id: str, heartbeat_seconds: float) -> str:
             kind, payload = job.kind, job.payload
             steps = [(s.idx, s.name, s.status, s.output) for s in
                      db.query(JobStep).filter(JobStep.job_id == job_id).order_by(JobStep.idx)]
-        functions = dict(KINDS[kind])
+        functions = dict(kinds()[kind])
         outputs = {name: out for _, name, status, out in steps if status == "done"}
 
         for idx, name, status, _ in steps:

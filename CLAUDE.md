@@ -121,8 +121,8 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–6a are done (M1
-  complete); **Phase 6b** (evaluation + pipeline) is next.
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–6b are done (M1
+  complete, M2 backend complete); **Phase 7** (M2 UI) is next.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -181,4 +181,11 @@ frontend to hide a field.
   (save-first create, assess → 422 rejects / warnings / missing, duplicates + explicit
   resolution, versioned edits, photos), `services/tasks.py`, `api/scouting.py`. Shared
   `Unprocessable` (422) / `Forbidden` (403) errors in `core/errors.py`. Photos in `uploads/`.
-- **Next step: Phase 6b** — evaluation job + pipeline + follow-up loop.
+- Phase 6b done: `services/evaluation.py` (7 site factors, completeness gate, hard flags, rule
+  risks, review card), `jobs/property_evaluation.py` (load → evaluate → save; immutable
+  `property_evaluations` versions), `services/pipeline.py` (stage rules, reason + version, study
+  stages reserved for M3, reject → reopen, follow-up loop), endpoints in `api/scouting.py`.
+  Job registry is lazy (`registry.kinds()`); services enqueue on `queue.DEFAULT_QUEUE` (tests
+  point it at "test"). Test cleanup: `tests/conftest.purge_scouting_test_data()`.
+- **M2 backend complete.** Next step: **Phase 7** — M2 UI (BD Exec mobile task map + property
+  form + photos, manager review card, pipeline board, history).

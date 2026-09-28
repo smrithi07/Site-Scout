@@ -1,8 +1,17 @@
-"""Job kinds → ordered steps. M2/M3 add their kinds here (property_evaluation, …)."""
-from app.jobs import area_report, selftest
+"""Job kinds → ordered steps. M3 adds its kinds here (study planning, roll-up, …).
+
+Loaded lazily: job modules import services, and services enqueue jobs — importing every kind at
+module import time would make that a cycle."""
+from functools import cache
+
 from app.jobs.context import Step
 
-KINDS: dict[str, list[tuple[str, Step]]] = {
-    "selftest": selftest.STEPS,
-    "area_report": area_report.STEPS,
-}
+
+@cache
+def kinds() -> dict[str, list[tuple[str, Step]]]:
+    from app.jobs import area_report, property_evaluation, selftest
+    return {
+        "selftest": selftest.STEPS,
+        "area_report": area_report.STEPS,
+        "property_evaluation": property_evaluation.STEPS,
+    }
