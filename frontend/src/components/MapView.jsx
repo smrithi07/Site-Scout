@@ -24,13 +24,15 @@ export function boundsOf(geojson) {
  * selected: Set of h3 ids to highlight; onCellClick(h3) makes the grid clickable
  * fit: bounds to fly to when it changes; overlays: [{id, data, layers}] extra sources (5b)
  */
-export default function MapView({ grid, serviceArea, stores, selected, onCellClick, fit, overlays = [] }) {
+export default function MapView({ grid, serviceArea, stores, selected, onCellClick, onMapClick, fit, overlays = [] }) {
   const container = useRef(null)
   const map = useRef(null)
   const shown = useRef(new Set())
   const clickRef = useRef(onCellClick)
+  const mapClickRef = useRef(onMapClick)
   const [ready, setReady] = useState(false)
   clickRef.current = onCellClick
+  mapClickRef.current = onMapClick
 
   useEffect(() => {
     const m = new MapLibreMap({ container: container.current, style: STYLE, center: CHENNAI, zoom: 10.5,
@@ -75,9 +77,11 @@ export default function MapView({ grid, serviceArea, stores, selected, onCellCli
         hovered = null
       })
       m.on('click', 'grid-fill', (e) => clickRef.current?.(e.features[0]?.properties.h3))
+      m.on('click', (e) => mapClickRef.current?.({ lat: e.lngLat.lat, lon: e.lngLat.lng }))
       setReady(true)
     })
     map.current = m
+    container.current.__map = m // debugging hook (inspect the live map from the console)
     return () => m.remove()
   }, [])
 

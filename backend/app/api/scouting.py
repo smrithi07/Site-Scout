@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Query, Response, UploadFile
 from fastapi.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.auth import BD_ROLES, Role, current_user, require_roles
@@ -104,7 +104,15 @@ def create_property(body: PropertyCreate, response: Response, user: User = Depen
 @router.get("/properties")
 def list_properties(task_id: int | None = None, stage: str | None = None, user: User = Depends(bd),
                     db: Session = Depends(get_db)) -> list[dict]:
-    return [property_response(p, user.role) for p in properties.list_for(db, user, task_id, stage)]
+    rows = properties.list_for(db, user, task_id, stage)
+    newest = (select(PropertyEvaluation.property_id, func.max(PropertyEvaluation.version).label("v"))
+              .where(PropertyEvaluation.property_id.in_([p.id for p in rows]))
+              .group_by(PropertyEvaluation.property_id).subquery())
+    latest = {e.property_id: e for e in db.scalars(select(PropertyEvaluation).join(
+        newest, (PropertyEvaluation.property_id == newest.c.property_id) & (PropertyEvaluation.version == newest.c.v)))}
+    # BD roles only (list_for returns nothing for others): latest outcome for list/board views.
+    return [{**property_response(p, user.role), "outcome": getattr(latest.get(p.id), "outcome", None),
+             "score": getattr(latest.get(p.id), "score", None)} for p in rows]
 
 
 @router.get("/properties/{property_id}")

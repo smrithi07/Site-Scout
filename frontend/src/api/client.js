@@ -33,6 +33,27 @@ export function setUnauthorizedHandler(fn) {
   onUnauthorized = fn
 }
 
+const authHeader = () => {
+  const t = loadSession()?.token
+  return t ? { Authorization: `Bearer ${t}` } : {}
+}
+
+// Protected images can't use a plain <img src> (no bearer header), so fetch them as blobs.
+export async function apiBlob(path) {
+  const res = await fetch(`${API_URL}${path}`, { headers: authHeader() })
+  if (!res.ok) throw new ApiError(res.status, `HTTP ${res.status}`)
+  return res.blob()
+}
+
+export async function apiUpload(path, file) {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch(`${API_URL}${path}`, { method: 'POST', headers: authHeader(), body: form })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new ApiError(res.status, data.detail ?? `Upload failed (HTTP ${res.status})`)
+  return data
+}
+
 export async function api(path, { method = 'GET', body, token } = {}) {
   const session = loadSession()
   const bearer = token ?? session?.token

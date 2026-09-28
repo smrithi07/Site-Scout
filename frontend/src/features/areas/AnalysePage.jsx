@@ -21,8 +21,9 @@ function toggle(set, id) {
   return next
 }
 
-export function useMapLayers() {
-  const grid = useQuery({ queryKey: ['grid'], queryFn: () => api('/areas/grid'), staleTime: Infinity })
+export function useMapLayers({ withGrid = true } = {}) {
+  // The selection grid is BD-Manager-only; other screens ask for outline + stores alone.
+  const grid = useQuery({ queryKey: ['grid'], queryFn: () => api('/areas/grid'), staleTime: Infinity, enabled: withGrid })
   const serviceArea = useQuery({ queryKey: ['service-area'], queryFn: () => api('/reference/service-area'), staleTime: Infinity })
   const stores = useQuery({ queryKey: ['stores'], queryFn: () => api('/reference/stores'), staleTime: Infinity })
   return { grid: grid.data, serviceArea: serviceArea.data, stores: stores.data, error: grid.error ?? serviceArea.error }

@@ -7,22 +7,32 @@ import ReportPage from './features/areas/ReportPage'
 import ReportsPage from './features/areas/ReportsPage'
 import Home from './features/home/Home'
 import JobPage from './features/jobs/JobPage'
+import PropertiesPage from './features/scouting/PropertiesPage'
+import PropertyForm from './features/scouting/PropertyForm'
+import PropertyPage from './features/scouting/PropertyPage'
+import TaskPage from './features/scouting/TaskPage'
 
 function RequireUser({ children }) {
   const { user } = useAuth()
   return user ? children : <Navigate to="/" replace />
 }
 
+const guarded = (el) => <RequireUser>{el}</RequireUser>
+
 export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
         <Route index element={<Home />} />
-        <Route path="areas/analyse" element={<RequireUser><AnalysePage /></RequireUser>} />
-        <Route path="areas/reports" element={<RequireUser><ReportsPage /></RequireUser>} />
-        <Route path="areas/reports/:id" element={<RequireUser><ReportPage /></RequireUser>} />
-        <Route path="areas/compare/:a/:b" element={<RequireUser><ComparePage /></RequireUser>} />
-        <Route path="jobs/:id" element={<RequireUser><JobPage /></RequireUser>} />
+        <Route path="areas/analyse" element={guarded(<AnalysePage />)} />
+        <Route path="areas/reports" element={guarded(<ReportsPage />)} />
+        <Route path="areas/reports/:id" element={guarded(<ReportPage />)} />
+        <Route path="areas/compare/:a/:b" element={guarded(<ComparePage />)} />
+        <Route path="jobs/:id" element={guarded(<JobPage />)} />
+        <Route path="tasks/:id" element={guarded(<TaskPage />)} />
+        <Route path="properties" element={guarded(<PropertiesPage />)} />
+        <Route path="properties/new" element={guarded(<PropertyForm />)} />
+        <Route path="properties/:id" element={guarded(<PropertyPage />)} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

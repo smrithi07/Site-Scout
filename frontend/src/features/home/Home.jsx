@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import RoleSwitcher from '../../app/RoleSwitcher'
 import { ROLE_LABELS, useAuth } from '../../app/auth'
+import ExecHome from '../scouting/ExecHome'
 
 // What each persona will land on (docs/DESIGN.md §4). Only the BD Manager's M1 tools exist so far.
 const HOMES = {
@@ -9,7 +10,6 @@ const HOMES = {
     body: 'Pick an area of Chennai — by pincode, locality or cells on the map — and get an Area Fitness Report with hotspots to scout.',
     cta: { to: '/areas/analyse', label: 'Analyse an area' },
   },
-  bd_executive: { title: 'My scouting tasks', body: 'Scouting tasks and the property form arrive with M2.' },
   survey_manager: { title: 'Study requests', body: 'The request inbox and unit planning arrive with M3.' },
   survey_executive: { title: 'My units today', body: 'Lane capture arrives with M3.' },
 }
@@ -25,6 +25,7 @@ export default function Home() {
       </div>
     )
   }
+  if (user.role === 'bd_executive') return <ExecHome />
   const home = HOMES[user.role]
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">

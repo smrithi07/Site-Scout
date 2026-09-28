@@ -24,7 +24,7 @@ function Delta({ value, invert = false }) {
 
 export default function ComparePage() {
   const { a, b } = useParams()
-  const layers = useMapLayers()
+  const layers = useMapLayers({ withGrid: false })
   const cmp = useQuery({ queryKey: ['compare', a, b], queryFn: () => api(`/areas/reports/${a}/compare/${b}`) })
   const ra = useQuery({ queryKey: ['report', a], queryFn: () => api(`/areas/reports/${a}`) })
   const rb = useQuery({ queryKey: ['report', b], queryFn: () => api(`/areas/reports/${b}`) })

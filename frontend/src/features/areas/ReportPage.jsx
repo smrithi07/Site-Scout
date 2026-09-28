@@ -7,6 +7,7 @@ import { api } from '../../api/client'
 import MapView, { boundsOf } from '../../components/MapView'
 import ScoreBreakdown, { fmt } from '../../components/ScoreBreakdown'
 import { useMapLayers } from './AnalysePage'
+import CreateTaskPanel from '../scouting/CreateTaskPanel'
 import NarrativeSource from './NarrativeSource'
 import { reportOverlays } from './reportLayers'
 
@@ -32,7 +33,7 @@ function Section({ title, children, aside }) {
 export default function ReportPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const layers = useMapLayers()
+  const layers = useMapLayers({ withGrid: false })
   const [focus, setFocus] = useState(null)
   const [runError, setRunError] = useState(null)
   const report = useQuery({ queryKey: ['report', id], queryFn: () => api(`/areas/reports/${id}`) })
@@ -154,6 +155,8 @@ export default function ReportPage() {
             </ol>
           )}
         </Section>
+
+        {hotspots.length > 0 && <div className="mt-3"><CreateTaskPanel report={r} /></div>}
 
         {/* Facts */}
         <Section title="What's there">
