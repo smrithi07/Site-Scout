@@ -14,10 +14,11 @@ from app.models.reference import (
     Zone,
 )
 from app.models.reports import AreaReport
+from app.models.studies import SegmentCapture, Study, StudySegment
 from app.models.scouting import FollowUp, Property, PropertyEvaluation, PropertyNote, PropertyPhoto, ScoutTask
 
 __all__ = [
     "AreaReport", "AuditEvent", "Base", "CellFeature", "ConfigVersion", "DataSnapshot", "DataSource",
     "H3Cell", "Job", "JobStep", "LlmCall", "Locality", "MlBuilding", "OsmBuilding", "OsmLanduse", "OsmPoi", "Pincode",
-    "FollowUp", "PostOffice", "Property", "PropertyEvaluation", "PropertyNote", "PropertyPhoto", "RoadSegment", "ScoutTask", "ServiceArea", "Store", "User", "Ward", "Zone",
+    "FollowUp", "PostOffice", "Property", "PropertyEvaluation", "PropertyNote", "PropertyPhoto", "RoadSegment", "ScoutTask", "SegmentCapture", "Study", "StudySegment", "ServiceArea", "Store", "User", "Ward", "Zone",
 ]

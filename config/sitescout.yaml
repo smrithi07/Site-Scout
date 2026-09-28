@@ -1,6 +1,6 @@
 # Savo SiteScout config. Every snapshot records `version`. Bump it on ANY change below.
 # Weights/thresholds/radii/freshness/caps are filled in as each phase needs them (see docs/DESIGN.md).
-version: "0.9.0"
+version: "0.10.0"
 
 region:
   name: Greater Chennai Corporation
@@ -154,3 +154,15 @@ scoring:
     high: 0.75
     medium: 0.5
   hotspots: {count: 5, min_separation_k: 1}
+
+studies:
+  # M3 catchment studies (docs/DESIGN.md §7). The survey atom is the road segment.
+  catchment_radius_m: 600            # same as the M2 site radius (evaluation.site_ring_k ≈ 600 m)
+  # A segment is in the catchment if its midpoint is inside the radius: segments keep their stable
+  # ids (clipping would create new, id-less pieces) and a unit never includes a lane mostly outside.
+  request_from_stages: [shortlisted]
+  freshness_days: 90                 # a capture older than this is stale and is never reused
+  reuse_default_min_coverage: 0.80   # ≥ this fresh coverage: "reuse only" allowed (lower confidence)
+  # A capture made on an older data snapshot is reused only if that segment's geometry is
+  # unchanged within this tolerance (Hausdorff, metres) — ids are only stable per snapshot.
+  cross_snapshot_match_m: 10

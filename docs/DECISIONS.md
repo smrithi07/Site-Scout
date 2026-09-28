@@ -524,6 +524,39 @@ Phase 6 split: **6a** = tasks, save-first properties, validation, duplicates, ph
   the executive-answer return to review as *automatic*.
 - Nav: the manager's "Properties" link became "Pipeline" (`/properties` still lists everything).
 
+## Phase 8a decisions (catchment studies: request + reuse)
+
+- **Catchment = segments whose midpoint is within 600 m** (not clipped): segments keep their stable
+  ids and a lane mostly outside the circle isn't surveyed. Measured: 315–540 segments,
+  25–33 km of road per catchment. A bounding-box prefilter on the GiST index took the catchment
+  query from 1.3 s to 53 ms.
+- **Reuse state per segment**, from its captures: `fresh` (surveyed within 90 days → reused,
+  covered), `fresh_gap` (recent could-not-survey → handled, not covered, not retried until
+  stale), `stale` (only older captures → surveyed again, never reused), `uncovered`. Coverage is
+  length-weighted fresh length. A newer capture always wins; an older one never hides a fresh one.
+- **Captures outlive snapshots**: a capture made on an older data snapshot is reused only if its
+  segment id matches and the geometry is unchanged within 10 m (Hausdorff in UTM 44N) — ids are
+  only stable within one snapshot. Tested both ways.
+- **Three reuse modes**: `reuse_and_fill` (default: reuse fresh, survey stale + uncovered),
+  `reuse_only` (survey nothing; lower-confidence summary), `full_survey` (waive reuse). Any
+  non-default mode needs a reason from the BD Manager at request. The Survey Manager's plan is
+  final; changing the requested mode, or reuse-only below 80%, needs their own reason. Coverage is
+  re-checked at planning (captures may have aged). Both decisions are audited with coverage.
+- **Study stages are entered only by the study workflow** (`pipeline.study_transition`):
+  shortlisted → study requested (on request) → in progress (8b, on assignment) → complete
+  (Phase 10). Cancelling returns the property to shortlisted; rejecting / putting on hold mid-study
+  cancels the study. Captured data always stays (captures are append-only).
+- **One open study per property** (partial unique index + 409). A study request carries the
+  property version (optimistic lock) like every other stage change.
+- **Survey Manager** sees studies with the property through the masked survey view; the BD
+  Manager sees the status and reuse summary, not the segment map. Survey executives: 8b.
+- **Lane observation schema** is defined now (`schemas/studies.LaneObservations`) so the demo seed
+  and Phase 10's capture form share it. Time band is auto-stamped from the capture time (IST).
+- **Demo seed captures** (`make seed-captures`) are synthetic, marked `source = demo_seed`, listed
+  in `data/MANIFEST.md` as mock data. They exist only so reuse can be shown before any survey.
+- The BD Manager's Request-study button + coverage preview dialog is UI work for Phase 9
+  (`GET /studies/preview` and `pipeline.study` in the property response are ready for it).
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

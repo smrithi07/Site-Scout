@@ -121,8 +121,8 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–7b are done (M1
-  and M2 complete); **Phase 8** (M3 backend) is next.
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–8a are done (M1
+  and M2 complete, M3 study request + reuse); **Phase 8b** (survey units) is next.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -200,4 +200,12 @@ frontend to hide a field.
   reason, follow-up request; 409 → re-read, keep the reason, confirm again), `History`. Shared UI in
   `features/scouting/shared.jsx`. API adds `pipeline` (allowed moves, follow-up) for the manager
   and `actor_name` in history.
-- **M2 is complete end to end.** Next step: **Phase 8** — M3 (see `docs/PHASES.md`).
+- **M2 is complete end to end.**
+- Phase 8a done: `models/studies.py` (studies, study_segments, append-only segment_captures),
+  `services/studies.py` (catchment segments, per-segment reuse state, length-weighted coverage,
+  reuse modes + override reasons, request / plan / cancel), `pipeline.study_transition` (study
+  stages only via the study workflow; reject/on-hold cancels the study), `api/studies.py`,
+  `schemas/studies.py` (LaneObservations, per-role study response). Config `studies` (0.10.0).
+  `make seed-captures PROPERTY=197` seeds mock past captures (`source = demo_seed`).
+- Next step: **Phase 8b** — survey unit generation, edits with the one-segment-one-unit invariant,
+  assignment, survey executive's units.

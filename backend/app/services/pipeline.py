@@ -36,6 +36,12 @@ MANAGER_MOVES = {
     "approved": set(),
 }
 FOLLOW_UP_FROM = {"scouted", "under_review", "shortlisted", "on_hold"}
+# Entered only by the study workflow (services/studies.py), never by a manual move.
+STUDY_FLOW = {
+    "shortlisted": {"study_requested"},
+    "study_requested": {"study_in_progress", "shortlisted"},      # shortlisted = study cancelled
+    "study_in_progress": {"study_complete", "shortlisted"},
+}
 
 
 def actions(db: Session, p: Property) -> dict:
@@ -50,7 +56,24 @@ def actions(db: Session, p: Property) -> dict:
         follow_up = {"allowed": False, "why": "added by a manager, no executive to ask"}
     else:
         follow_up = {"allowed": True, "assignee": creator.name}
-    return {"moves": [s for s in STAGES if s in MANAGER_MOVES[p.stage]], "follow_up": follow_up}
+    from app.core.config import load_config  # local: keeps this module config-free at import
+    from_stages = load_config()["studies"]["request_from_stages"]
+    study = ({"allowed": True} if p.stage in from_stages
+             else {"allowed": False, "why": f"studies are requested from {', '.join(from_stages)}"})
+    return {"moves": [s for s in STAGES if s in MANAGER_MOVES[p.stage]], "follow_up": follow_up, "study": study}
+
+
+def study_transition(db: Session, actor: User, p: Property, to: str, *, reason: str, version: int,
+                     details: dict | None = None) -> None:
+    """Stage change caused by the study workflow (request, assignment, completion, cancellation)."""
+    if to not in STUDY_FLOW.get(p.stage, set()):
+        raise Conflict(f"Can't move from {p.stage} to {to} via the study workflow")
+    old = p.stage
+    update_versioned(db, Property, p.id, version, stage=to, updated_at=text("now()"))
+    audit.record(db, actor=actor, entity_type="property", entity_id=p.id, action="stage_moved",
+                 from_state=old, to_state=to, reason=reason, details={"via": "study", **(details or {})})
+    db.flush()
+    db.refresh(p)
 
 
 def move(db: Session, actor: User, property_id: int, to: str, reason: str, version: int,
@@ -76,7 +99,9 @@ def move(db: Session, actor: User, property_id: int, to: str, reason: str, versi
     if old == "needs_follow_up":  # manager withdrew the request
         db.execute(update(FollowUp).where(FollowUp.property_id == p.id, FollowUp.status == "open")
                    .values(status="withdrawn"))
-    # M3: rejecting a property with an open study cancels the study but keeps its captured data.
+    if old in STUDY_STAGES:  # rejected / on hold mid-study: cancel the study, keep its captured data
+        from app.services import studies  # local: studies imports this module
+        studies.cancel_open_for_property(db, actor, p.id, f"property moved to {to}: {reason}")
     audit.record(db, actor=actor, entity_type="property", entity_id=p.id, action="stage_moved",
                  from_state=old, to_state=to, reason=reason, details=details or {})
     db.flush()

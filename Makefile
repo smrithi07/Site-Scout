@@ -1,4 +1,4 @@
-.PHONY: up down logs ps health test psql migrate ingest gate reload-env llm-smoke
+.PHONY: up down logs ps health test psql migrate ingest gate reload-env llm-smoke seed-captures
 
 # -V renews anonymous volumes: web's node_modules would otherwise survive a dependency change.
 # The database uses a named volume (pgdata), which is kept.
@@ -42,3 +42,8 @@ reload-env:
 # Usage: make llm-smoke REPORT=3 PROVIDER=gemini
 llm-smoke:
 	docker compose exec api python -m app.llm.smoke --report $(REPORT) --provider $(PROVIDER)
+
+# Synthetic PAST lane captures around a property (source=demo_seed, mock provenance) to demo reuse.
+# Usage: make seed-captures PROPERTY=197 [ARGS="--coverage 0.85 --stale 0.08"]   |   ARGS=--purge
+seed-captures:
+	docker compose exec api python -m app.demo.seed_captures $(if $(PROPERTY),--property $(PROPERTY)) $(ARGS)

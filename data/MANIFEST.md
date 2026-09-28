@@ -23,3 +23,4 @@ gate), Google Open Buildings v3 (Microsoft footprints passed the gate; 1.12 GB t
 | Dataset | Where | What it is |
 |---|---|---|
 | Rent bands, ₹/sq ft/month by GCC zone group | `config/sitescout.yaml` → `mock_rent_bands` | Invented, plausible-looking ranges (core 90–200, inner 60–140, outer 50–120, north 35–90) used only to sanity-check entered rents and, in Phase 6b, to position rent affordability. Not market data. |
+| Past lane captures (demo) | `make seed-captures PROPERTY=<id>` → `segment_captures` with `source = demo_seed` | Synthetic observations on a property's catchment segments (deterministic seed, plausible per road class), backdated so fresh/stale reuse can be demonstrated before any real survey. Every row is marked `demo_seed`; `ARGS=--purge` removes them. Not field data. |

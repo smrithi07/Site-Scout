@@ -6,7 +6,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
-from app.api import areas, auth, config, jobs, reference, scouting
+from app.api import areas, auth, config, jobs, reference, scouting, studies
 from app.core import errors
 from app.core.config import config_sha256, load_config, register_config
 from app.core.db import engine
@@ -36,6 +36,7 @@ app.include_router(reference.router)
 app.include_router(jobs.router)
 app.include_router(areas.router)
 app.include_router(scouting.router)
+app.include_router(studies.router)
 
 
 @app.get("/health")

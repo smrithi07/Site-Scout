@@ -18,6 +18,7 @@ ACCESS = [
     ("GET", "/reference/locate?lat=13.0418&lon=80.2341", {Role.BD_MANAGER, Role.BD_EXECUTIVE}),
     ("GET", "/tasks", {Role.BD_MANAGER, Role.BD_EXECUTIVE}),
     ("GET", "/properties", {Role.BD_MANAGER, Role.BD_EXECUTIVE}),
+    ("GET", "/studies", {Role.BD_MANAGER, Role.SURVEY_MANAGER}),
 ]
 
 

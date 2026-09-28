@@ -13,7 +13,7 @@ from sqlalchemy import Connection, text
 
 from app.core.settings import get_settings
 
-REQUIRED_SECTIONS = ("version", "region", "grid", "localities", "osm", "ml_buildings", "mask", "jobs", "llm", "properties", "evaluation", "mock_rent_bands", "selection", "scoring")
+REQUIRED_SECTIONS = ("version", "region", "grid", "localities", "osm", "ml_buildings", "mask", "jobs", "llm", "properties", "evaluation", "mock_rent_bands", "selection", "scoring", "studies")
 
 
 class ConfigError(Exception):
