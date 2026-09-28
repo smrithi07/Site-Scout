@@ -1,10 +1,9 @@
-"""Worker process. Phase 0c placeholder: proves it can reach the DB and stays alive.
-The jobs table, row-locking poll, heartbeat, and step resume arrive in Phase 3."""
+"""Worker process. Placeholder until Phase 3b: registers the config version and stays alive.
+The jobs table, row-locking poll, heartbeat, and step resume arrive in Phase 3b."""
 import logging
 import time
 
-from sqlalchemy import text
-
+from app.core.config import register_config
 from app.core.db import engine
 from app.core.settings import get_settings
 
@@ -13,8 +12,8 @@ log = logging.getLogger(__name__)
 
 
 def main() -> None:
-    with engine.connect() as conn:
-        conn.execute(text("SELECT 1"))
+    with engine.begin() as conn:
+        register_config(conn)
     log.info("connected to db; idle (no jobs table yet)")
     while True:
         time.sleep(get_settings().worker_poll_seconds)

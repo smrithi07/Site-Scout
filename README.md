@@ -18,5 +18,9 @@ make health            # {"status":"ok", ...}
 - Web: http://localhost:5173
 - API: http://localhost:8000 (docs at `/docs`)
 
+Demo auth: four seeded users (BD Manager, BD Executive, Survey Manager, Survey Executive).
+`POST /auth/demo-login {"user_id": 1..4}` returns a bearer token; every other endpoint except
+`/health` requires one, and role checks are enforced server-side.
+
 _This README is built up phase by phase; run instructions, role switcher, citations, and
 trade-offs are completed in Phase 12._

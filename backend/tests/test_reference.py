@@ -1,12 +1,11 @@
 """Phase 1 checkpoint. Integration tests: they read the active snapshot, so run `make ingest` first."""
-from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from app.core.db import engine
-from app.main import app
 from app.services.localities import normalize
+from tests.conftest import bd_client
 
-client = TestClient(app)
+client = bd_client()
 
 
 def _q(sql: str):

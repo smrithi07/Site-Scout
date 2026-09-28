@@ -237,6 +237,33 @@ mapping.
 - **Mask "empty" rule now needs zero buildings in *both* sources**: 139 → 84 empty cells. 55 cells
   had real buildings that OSM never mapped.
 
+## Phase 3a decisions (config versioning, auth, masking)
+
+Phase 3 was split at the user's request: **3a** = config versioning + users/roles + masking,
+**3b** = audit log + jobs/worker.
+
+- **Config versioning**: every loaded config is registered in `config_versions` (version, sha256
+  of the parsed content, full content). Registering a version whose content differs from what's
+  stored is refused, so a forgotten `version` bump stops the API, worker and ingest at startup
+  instead of silently producing snapshots whose `config_version` lies. The hash is of the parsed
+  YAML, so comment/whitespace edits don't need a bump. `/config` serves the active config + hash
+  (for the UI's "weights in force" panel); `/health` shows the version + short hash.
+- **Demo auth**: four users seeded by migration 0004 with fixed ids. Tokens are
+  `<user_id>.<HMAC-SHA256(APP_SECRET, user id)>`: nothing stored, nothing committed; `APP_SECRET`
+  lives in `.env` (min 16 chars, enforced). `POST /auth/demo-login` issues a token for the role
+  switcher and exists only while `DEMO_AUTH=true`; `/auth/demo-users` lists names/roles, never
+  tokens. No expiry: deliberately out of scope (docs/DESIGN.md §4).
+- **Role checks**: `require_roles(...)` dependency → 401 missing/invalid token, 403 wrong role.
+  Applied now: locality search = BD roles; pincode shapes = BD roles + Survey Manager;
+  snapshot/config/me = any signed-in user; `/health` public.
+- **Field masking = allow-lists, not deny-lists.** `schemas/properties.py` has one response model
+  per role listing exactly what it may see; a field added to the property record later is
+  invisible to every role until a view opts in. `BD_ONLY_FIELDS` states the intent and a test
+  keeps it and the models in sync. Built ahead of the property table (Phase 6) from the §6 form
+  fields, and tested with a record carrying every field plus sentinel values (so a leak under a
+  renamed key is still caught). Row-level rules (executives see only their own) are ownership
+  checks in services, not masking.
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

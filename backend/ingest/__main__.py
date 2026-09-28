@@ -14,7 +14,7 @@ import time
 
 from sqlalchemy import text
 
-from app.core.config import load_config
+from app.core.config import load_config, register_config
 from app.core.db import engine
 from ingest import gate as gate_report
 from ingest.features import build_cell_features
@@ -37,6 +37,7 @@ STEPS = [load_zones, load_wards, build_service_area, load_post_offices, load_pin
 
 def build() -> int:
     with engine.begin() as conn:
+        register_config(conn)  # the version stamped on the snapshot must be a registered one
         s = conn.execute(text("""INSERT INTO data_snapshots (status, config_version, stats)
                                  VALUES ('building', :v, '{}') RETURNING id"""),
                          dict(v=load_config()["version"])).scalar()
