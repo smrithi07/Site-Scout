@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1204 1160" width="1204" height="1160" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title>Savo SiteScout architecture</title>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1 L8 5 L1 9" fill="none" stroke="#8a8a8a" stroke-width="1.6"/>
+    </marker>
+    <style>
+      .app { fill: #3d3486; stroke: #5b50b8; stroke-width: 1.5; }
+      .store { fill: #0b4d3f; stroke: #17785f; stroke-width: 1.5; }
+      .ext { fill: #4a4a45; stroke: #66665f; stroke-width: 1.5; }
+      .card { fill: #1b1b1d; stroke: #3a3a3e; stroke-width: 1.2; }
+      .h { font-size: 26px; font-weight: 600; }
+      .sub { font-size: 22px; }
+      .ct { font-size: 26px; fill: #fff; font-weight: 500; }
+      .cs { font-size: 21px; fill: #c9c9c9; }
+      .arrow { stroke: #8a8a8a; stroke-width: 2; fill: none; }
+      .leg { font-size: 22px; fill: #9a9a9a; }
+    </style>
+  </defs>
+
+  <!-- React SPA -->
+  <rect class="app" x="1" y="1" width="1200" height="180" rx="22"/>
+  <text x="38" y="44" class="h" fill="#d8d2ff">React SPA</text>
+  <text x="202" y="44" class="sub" fill="#b3a8f0">MapLibre map, role-specific views, local drafts</text>
+  <g text-anchor="middle">
+    <rect class="card" x="34" y="73" width="262" height="80" rx="12"/><text x="165" y="123" class="ct">BD manager</text>
+    <rect class="card" x="326" y="73" width="262" height="80" rx="12"/><text x="457" y="123" class="ct">BD executive</text>
+    <rect class="card" x="618" y="73" width="262" height="80" rx="12"/><text x="749" y="123" class="ct">Survey manager</text>
+    <rect class="card" x="910" y="73" width="262" height="80" rx="12"/><text x="1041" y="123" class="ct">Survey executive</text>
+  </g>
+  <line class="arrow" x1="601" y1="186" x2="601" y2="236" marker-start="url(#a)" marker-end="url(#a)"/>
+
+  <!-- FastAPI -->
+  <rect class="app" x="1" y="241" width="1200" height="220" rx="22"/>
+  <text x="38" y="284" class="h" fill="#d8d2ff">FastAPI</text>
+  <text x="165" y="284" class="sub" fill="#b3a8f0">thin routers, service layer, one auth dependency</text>
+  <g text-anchor="middle">
+    <rect class="card" x="34" y="317" width="262" height="112" rx="12"/><text x="165" y="367" class="ct">Auth + masking</text><text x="165" y="402" class="cs">role 403s, fields</text>
+    <rect class="card" x="326" y="317" width="262" height="112" rx="12"/><text x="457" y="367" class="ct">Domain services</text><text x="457" y="402" class="cs">areas, pipeline</text>
+    <rect class="card" x="618" y="317" width="262" height="112" rx="12"/><text x="749" y="367" class="ct">Scoring engine</text><text x="749" y="402" class="cs">config weights</text>
+    <rect class="card" x="910" y="317" width="262" height="112" rx="12"/><text x="1041" y="367" class="ct">LLM adapter</text><text x="1041" y="402" class="cs">validate, fallback</text>
+  </g>
+  <line class="arrow" x1="601" y1="466" x2="601" y2="680" marker-start="url(#a)" marker-end="url(#a)"/>
+  <line class="arrow" x1="1041" y1="466" x2="1041" y2="516" marker-end="url(#a)"/>
+
+  <!-- Worker + LLM providers -->
+  <rect class="app" x="1" y="521" width="360" height="104" rx="18"/>
+  <g text-anchor="middle">
+    <text x="181" y="567" class="h" fill="#d8d2ff">Worker process</text>
+    <text x="181" y="602" class="sub" fill="#b3a8f0">polls jobs, runs steps</text>
+  </g>
+  <line class="arrow" x1="181" y1="630" x2="181" y2="680" marker-start="url(#a)" marker-end="url(#a)"/>
+  <rect class="ext" x="841" y="521" width="360" height="104" rx="18"/>
+  <g text-anchor="middle">
+    <text x="1021" y="567" class="h" fill="#ececec">LLM providers</text>
+    <text x="1021" y="602" class="sub" fill="#c8c8c0">Gemini, Groq, template</text>
+  </g>
+
+  <!-- PostGIS -->
+  <rect class="store" x="1" y="685" width="1200" height="220" rx="22"/>
+  <text x="38" y="728" class="h" fill="#8fe6c1">PostGIS</text>
+  <text x="170" y="728" class="sub" fill="#6fd3a9">one store: spatial data, workflow state, job queue</text>
+  <g text-anchor="middle">
+    <rect class="card" x="34" y="761" width="262" height="112" rx="12"/><text x="165" y="811" class="ct">Spatial layers</text><text x="165" y="846" class="cs">cells, roads, POIs</text>
+    <rect class="card" x="326" y="761" width="262" height="112" rx="12"/><text x="457" y="811" class="ct">Workflow state</text><text x="457" y="846" class="cs">pipeline, jobs</text>
+    <rect class="card" x="618" y="761" width="262" height="112" rx="12"/><text x="749" y="811" class="ct">Snapshots</text><text x="749" y="846" class="cs">immutable versions</text>
+    <rect class="card" x="910" y="761" width="262" height="112" rx="12"/><text x="1041" y="811" class="ct">Audit + config</text><text x="1041" y="846" class="cs">who, what, why</text>
+  </g>
+  <line class="arrow" x1="601" y1="968" x2="601" y2="910" marker-end="url(#a)"/>
+
+  <!-- Ingest row -->
+  <rect class="ext" x="1" y="973" width="360" height="104" rx="18"/>
+  <g text-anchor="middle">
+    <text x="181" y="1019" class="h" fill="#ececec">Public data</text>
+    <text x="181" y="1054" class="sub" fill="#c8c8c0">OSM, buildings, pincodes</text>
+  </g>
+  <line class="arrow" x1="366" y1="1025" x2="416" y2="1025" marker-end="url(#a)"/>
+  <rect class="app" x="421" y="973" width="360" height="104" rx="18"/>
+  <g text-anchor="middle">
+    <text x="601" y="1019" class="h" fill="#d8d2ff">Ingestion job</text>
+    <text x="601" y="1054" class="sub" fill="#b3a8f0">offline, snapshotted</text>
+  </g>
+  <line class="arrow" x1="836" y1="1025" x2="786" y2="1025" marker-end="url(#a)"/>
+  <rect class="ext" x="841" y="973" width="360" height="104" rx="18"/>
+  <g text-anchor="middle">
+    <text x="1021" y="1019" class="h" fill="#ececec">Stores API</text>
+    <text x="1021" y="1054" class="sub" fill="#c8c8c0">cached with its age</text>
+  </g>
+
+  <!-- Legend -->
+  <rect x="2" y="1127" width="26" height="26" rx="5" fill="#3d3486"/><text x="46" y="1149" class="leg">Our application code</text>
+  <rect x="362" y="1127" width="26" height="26" rx="5" fill="#0b4d3f"/><text x="406" y="1149" class="leg">Data store</text>
+  <rect x="602" y="1127" width="26" height="26" rx="5" fill="#4a4a45"/><text x="646" y="1149" class="leg">External source or provider</text>
+</svg>

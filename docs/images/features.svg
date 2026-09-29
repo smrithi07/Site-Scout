@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1290 1530" width="1290" height="1530" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title>Savo SiteScout features and how they connect</title>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1 L8 5 L1 9" fill="none" stroke="#8a8a8a" stroke-width="1.6"/>
+    </marker>
+    <style>
+      .app { fill: #3d3486; stroke: #5b50b8; stroke-width: 1.5; }
+      .bonus { fill: #3d3486; stroke: #fff200; stroke-width: 2; stroke-dasharray: 10 6; }
+      .store { fill: #0b4d3f; stroke: #17785f; stroke-width: 1.5; }
+      .card { fill: #1b1b1d; stroke: #3a3a3e; stroke-width: 1.2; }
+      .h { font-size: 26px; font-weight: 600; fill: #d8d2ff; }
+      .sub { font-size: 21px; fill: #b3a8f0; }
+      .hg { font-size: 26px; font-weight: 600; fill: #8fe6c1; }
+      .subg { font-size: 21px; fill: #6fd3a9; }
+      .ct { font-size: 25px; fill: #fff; font-weight: 500; }
+      .cs { font-size: 20px; fill: #c9c9c9; }
+      .arrow { stroke: #8a8a8a; stroke-width: 2; fill: none; }
+      .al { font-size: 19px; fill: #9a9a9a; }
+      .leg { font-size: 21px; fill: #9a9a9a; }
+      .tag { font-size: 17px; font-weight: 700; fill: #1c1022; }
+    </style>
+  </defs>
+
+  <!-- 1. Opportunity map (bonus) -->
+  <rect class="bonus" x="1" y="1" width="1200" height="200" rx="22"/>
+  <rect x="1060" y="18" width="118" height="30" rx="15" fill="#fff200"/><text x="1119" y="39" class="tag" text-anchor="middle">BONUS</text>
+  <text x="38" y="44" class="h">Opportunity map</text>
+  <text x="258" y="44" class="sub">BD Manager · no area picked first</text>
+  <g text-anchor="middle">
+    <rect class="card" x="34" y="70" width="262" height="104" rx="12"/><text x="165" y="115" class="ct">City heat</text><text x="165" y="149" class="cs">every cell scored</text>
+    <rect class="card" x="326" y="70" width="262" height="104" rx="12"/><text x="457" y="115" class="ct">Pockets</text><text x="457" y="149" class="cs">≤ 3 cells, top 20%</text>
+    <rect class="card" x="618" y="70" width="262" height="104" rx="12"/><text x="749" y="115" class="ct">Skip scouted</text><text x="749" y="149" class="cs">property, task, store</text>
+    <rect class="card" x="910" y="70" width="262" height="104" rx="12"/><text x="1041" y="115" class="ct">Start analysis</text><text x="1041" y="149" class="cs">same score as report</text>
+  </g>
+  <line class="arrow" x1="601" y1="206" x2="601" y2="246" marker-end="url(#a)"/>
+  <text x="620" y="233" class="al">pocket cells → area selection</text>
+
+  <!-- 2. M1 -->
+  <rect class="app" x="1" y="251" width="1200" height="200" rx="22"/>
+  <text x="38" y="294" class="h">M1 · Area intelligence</text>
+  <text x="330" y="294" class="sub">BD Manager · pick an area, get a fitness report</text>
+  <g text-anchor="middle">
+    <rect class="card" x="34" y="320" width="262" height="104" rx="12"/><text x="165" y="365" class="ct">Select area</text><text x="165" y="399" class="cs">pincode, locality, cells</text>
+    <rect class="card" x="326" y="320" width="262" height="104" rx="12"/><text x="457" y="365" class="ct">Area report</text><text x="457" y="399" class="cs">score, provenance</text>
+    <rect class="card" x="618" y="320" width="262" height="104" rx="12"/><text x="749" y="365" class="ct">Hotspots</text><text x="749" y="399" class="cs">why scout here</text>
+    <rect class="card" x="910" y="320" width="262" height="104" rx="12"/><text x="1041" y="365" class="ct">Versions</text><text x="1041" y="399" class="cs">saved, compared</text>
+  </g>
+  <line class="arrow" x1="601" y1="456" x2="601" y2="496" marker-end="url(#a)"/>
+  <text x="620" y="483" class="al">hotspots → scout task for an executive</text>
+
+  <!-- 3. M2 -->
+  <rect class="app" x="1" y="501" width="1200" height="200" rx="22"/>
+  <text x="38" y="544" class="h">M2 · Scouting &amp; evaluation</text>
+  <text x="382" y="544" class="sub">BD Executive onboards · BD Manager decides</text>
+  <g text-anchor="middle">
+    <rect class="card" x="34" y="570" width="262" height="104" rx="12"/><text x="165" y="615" class="ct">Scout tasks</text><text x="165" y="649" class="cs">cells + hotspots</text>
+    <rect class="card" x="326" y="570" width="262" height="104" rx="12"/><text x="457" y="615" class="ct">Property form</text><text x="457" y="649" class="cs">GPS, drafts, duplicates</text>
+    <rect class="card" x="618" y="570" width="262" height="104" rx="12"/><text x="749" y="615" class="ct">Evaluation v1</text><text x="749" y="649" class="cs">7 factors, risks, flags</text>
+    <rect class="card" x="910" y="570" width="262" height="104" rx="12"/><text x="1041" y="615" class="ct">Pipeline</text><text x="1041" y="649" class="cs">stages, reasons, follow-up</text>
+  </g>
+  <line class="arrow" x1="601" y1="706" x2="601" y2="746" marker-end="url(#a)"/>
+  <text x="620" y="733" class="al">shortlisted → request catchment study</text>
+
+  <!-- 4. M3 -->
+  <rect class="app" x="1" y="751" width="1200" height="200" rx="22"/>
+  <text x="38" y="794" class="h">M3 · Catchment study</text>
+  <text x="326" y="794" class="sub">BD Mgr requests · Survey Mgr plans · Survey Exec captures</text>
+  <g text-anchor="middle">
+    <rect class="card" x="34" y="820" width="262" height="104" rx="12"/><text x="165" y="865" class="ct">Reuse check</text><text x="165" y="899" class="cs">fresh coverage, overrides</text>
+    <rect class="card" x="326" y="820" width="262" height="104" rx="12"/><text x="457" y="865" class="ct">Survey units</text><text x="457" y="899" class="cs">generate, split, merge</text>
+    <rect class="card" x="618" y="820" width="262" height="104" rx="12"/><text x="749" y="865" class="ct">Lane capture</text><text x="749" y="899" class="cs">offline queue, idempotent</text>
+    <rect class="card" x="910" y="820" width="262" height="104" rx="12"/><text x="1041" y="865" class="ct">Roll-up</text><text x="1041" y="899" class="cs">catchment summary</text>
+  </g>
+  <line class="arrow" x1="601" y1="956" x2="601" y2="996" marker-end="url(#a)"/>
+  <text x="620" y="983" class="al">study complete → re-evaluation job</text>
+
+  <!-- 5. Re-evaluation -->
+  <rect class="app" x="1" y="1001" width="1200" height="200" rx="22"/>
+  <text x="38" y="1044" class="h">Re-evaluation</text>
+  <text x="222" y="1044" class="sub">observed data replaces estimates · v1 is never overwritten</text>
+  <g text-anchor="middle">
+    <rect class="card" x="34" y="1070" width="262" height="104" rx="12"/><text x="165" y="1115" class="ct">Evaluation v2</text><text x="165" y="1149" class="cs">observed + footfall</text>
+    <rect class="card" x="326" y="1070" width="262" height="104" rx="12"/><text x="457" y="1115" class="ct">Classified diff</text><text x="457" y="1149" class="cs">why each factor moved</text>
+    <rect class="card" x="618" y="1070" width="262" height="104" rx="12"/><text x="749" y="1115" class="ct">Narrative</text><text x="749" y="1149" class="cs">LLM phrases, validated</text>
+    <rect class="card" x="910" y="1070" width="262" height="104" rx="12"/><text x="1041" y="1115" class="ct">Decision</text><text x="1041" y="1149" class="cs">approve, reject, hold</text>
+  </g>
+
+  <!-- loop back to the pipeline -->
+  <path class="arrow" d="M1206 1101 H1250 V601 H1206" marker-end="url(#a)"/>
+  <text x="1268" y="851" class="al" text-anchor="middle" transform="rotate(-90 1268 851)">back to the BD Manager's pipeline</text>
+
+  <!-- 6. Rules -->
+  <rect class="store" x="1" y="1251" width="1200" height="200" rx="22"/>
+  <text x="38" y="1294" class="hg">Rules every feature follows</text>
+  <text x="378" y="1294" class="subg">enforced in the API and the database, not the UI</text>
+  <g text-anchor="middle">
+    <rect class="card" x="34" y="1320" width="262" height="104" rx="12"/><text x="165" y="1365" class="ct">Provenance</text><text x="165" y="1399" class="cs">observed, proxy, mock</text>
+    <rect class="card" x="326" y="1320" width="262" height="104" rx="12"/><text x="457" y="1365" class="ct">Snapshots</text><text x="457" y="1399" class="cs">immutable versions</text>
+    <rect class="card" x="618" y="1320" width="262" height="104" rx="12"/><text x="749" y="1365" class="ct">Audit + locking</text><text x="749" y="1399" class="cs">who, why · 409 if stale</text>
+    <rect class="card" x="910" y="1320" width="262" height="104" rx="12"/><text x="1041" y="1365" class="ct">Role access</text><text x="1041" y="1399" class="cs">403s, masked fields</text>
+  </g>
+
+  <!-- Legend -->
+  <rect x="2" y="1492" width="26" height="26" rx="5" fill="#3d3486"/><text x="46" y="1513" class="leg">Workflow (M1 → M3)</text>
+  <rect x="302" y="1492" width="26" height="26" rx="5" fill="#3d3486" stroke="#fff200" stroke-width="2" stroke-dasharray="5 3"/><text x="346" y="1513" class="leg">Bonus</text>
+  <rect x="482" y="1492" width="26" height="26" rx="5" fill="#0b4d3f"/><text x="526" y="1513" class="leg">Cross-cutting rules</text>
+</svg>

@@ -247,5 +247,8 @@ frontend to hide a field.
   `features/opportunities/OpportunitiesPage.jsx`; AnalysePage accepts `state.cells` (Adjust cells).
 - Don't run two `make test`s at once: they share the test DB and "test" job queue (deadlocks,
   lease_lost, purged fixtures).
-- Next step: **Phase 12** — hardening (README, fresh-clone one-command run + demo data,
+- Phase 12 started: `README.md` rewritten to the brief's checklist (setup, demo users, architecture
+  + features diagrams in `docs/images/*.svg`, data model, sources, scoring/AI, trade-offs, known
+  issues, AI tool use; video link is a placeholder), `.env.example` restored (placeholders only).
+- Next step: **Phase 12** (rest) — hardening (README, fresh-clone one-command run + demo data,
   production build incl. the MapLibre worker asset, edge-case pass).
