@@ -17,8 +17,8 @@ The story:
     2 T Nagar shopfront   — ~450 m away: its study reuses study 1's fresh lanes; Arjun is partway
                             through unit 1
     3 T Nagar ground floor— under review, open follow-up (photos) for Karthik
-    4 Pudupet market road — shortlisted, study requested: waiting in Divya's inbox
-    5 Pudupet side street — area missing → Needs Info
+    4 pocket market road  — shortlisted, study requested: waiting in Divya's inbox
+    5 pocket side street  — area missing → Needs Info
     6 Near a Savomart store  — ~200 m from an existing store → hard flag → rejected
   Plus a possible duplicate of property 1 for Karthik to resolve.
 
@@ -177,11 +177,12 @@ class Story:
         tnagar = self.report({"mode": "pincode", "pincode": "600017"})
         pocket = self.call("GET", "/opportunities", MEERA)["pockets"][0]
         self.say(f"top opportunity pocket: {pocket['label']} ({pocket['score']})")
-        pudupet = self.report(pocket["selection"])
+        pocket_report = self.report(pocket["selection"])
         t1 = self.task(tnagar, "Scout T Nagar hotspots 1–2", "Ground-floor units on busy streets, 800–1,200 sq ft.", 2)
-        t2 = self.task(pudupet, f"Scout {pocket['label'].split(' (')[0]} pocket",
+        place = pocket["label"].split(" (")[0]            # whichever pocket is top on this database
+        t2 = self.task(pocket_report, f"Scout {place} pocket",
                        "Surfaced by the opportunity map — nobody has visited yet.", 2)
-        hs, hp = tnagar["result"]["hotspots"], pudupet["result"]["hotspots"]
+        hs, hp = tnagar["result"]["hotspots"], pocket_report["result"]["hotspots"]
 
         print("M2 — Karthik onboards, Meera reviews")
         p1 = self.onboard("p1", (hs[0]["lat"], hs[0]["lon"]), t1, label="T Nagar corner unit", monthly_rent=145000,
@@ -195,10 +196,10 @@ class Story:
         p3 = self.onboard("p3", (hs[1]["lat"], hs[1]["lon"]), t1, label="T Nagar ground-floor unit", monthly_rent=98000,
                           area_sqft=900, frontage_ft=14, road_width_ft=20, visibility="fair", accessibility="fair",
                           parking="none", condition="fair", locality="T Nagar")
-        p4 = self.onboard("p4", (hp[0]["lat"], hp[0]["lon"]), t2, label="Market road unit (Pudupet pocket)", monthly_rent=72000,
+        p4 = self.onboard("p4", (hp[0]["lat"], hp[0]["lon"]), t2, label=f"Market road unit ({place} pocket)", monthly_rent=72000,
                           area_sqft=1000, frontage_ft=20, road_width_ft=26, visibility="good", accessibility="good",
                           parking="limited", condition="fair")
-        p5 = self.onboard("p5", (hp[1]["lat"], hp[1]["lon"]), t2, label="Side-street shop (Pudupet pocket)", monthly_rent=55000,
+        p5 = self.onboard("p5", (hp[1]["lat"], hp[1]["lon"]), t2, label=f"Side-street shop ({place} pocket)", monthly_rent=55000,
                           frontage_ft=12, visibility="fair", accessibility="fair")            # no area → Needs Info
         p6 = self.onboard("p6", (A_STORE[0] + 0.0016, A_STORE[1] + 0.0007), None,
                           label="Main road unit near a Savomart store", monthly_rent=48000, area_sqft=1200, frontage_ft=22,

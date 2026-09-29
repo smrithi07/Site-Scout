@@ -94,7 +94,8 @@ genuine):
 | **Arjun** | U1 of the second study, 10 of 17 lanes done, including one "could not survey" (gated lane) |
 
 Along the way: a site ~200 m from an existing Savomart store is capped by the hard flag and rejected, and the
-first study reuses labelled past data and surveys only the gap (8 units, 156 lanes).
+first study reuses labelled past data and surveys only the gap (8 units, 156 lanes). Counts are for a fresh
+install; on a database with earlier history, the top pocket and the reuse shares can differ.
 
 **What's synthetic, and labelled as such:** lane observations (plausible counts by road type) are
 stored with `source = demo_seed`, so every summary and v2 evaluation built on them says **mock**;
