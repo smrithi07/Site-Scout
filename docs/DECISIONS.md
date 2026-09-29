@@ -819,6 +819,24 @@ Reported: a 0.8 km unit in 17 disconnected parts (study #52). Measured before ch
   running app, opportunity map identical (Pudupet 77.3), 225 tests pass + 1 skip by design (needs two
   snapshots), re-run 16 s. The test project was removed with its volume.
 
+## Phase 12c decisions (demo story)
+
+- **Through the real API, in-process** (`TestClient`, each persona's own token, a reason on every
+  change) rather than SQL inserts: the audit trail, validation, versions, jobs, reuse and roll-up
+  are genuine, and the story breaks loudly if the product does.
+- **Three demo-only switches, all in-process, none exposed by the API**: jobs on a private `demo`
+  queue drained by the script (the live worker never sees them); no LLM providers (template
+  narratives, zero API calls; `--llm` opts in); `captures.SOURCE = "demo_seed"` so synthetic lanes
+  roll up as **mock** — a synthetic capture must never read as observed field data.
+- **Found while testing**: (1) client ids must be UUID v4 — deterministic ids are uuid5 bytes with
+  the version bits set to 4, so re-runs stay idempotent; (2) the second site sat 1.65 km from the
+  first, so no catchment overlap and 22 units — moved to ~450 m so study 2 reuses study 1's fresh
+  lanes (9 units), which also demonstrates cross-study reuse; (3) street names in labels could be
+  wrong (pins are hotspot centres; the locality lookup said Chintadripet for a "Pudupet" label), so
+  labels name only what's true by construction (area / pocket).
+- **Verified on a fresh install** (separate compose project + volume): 4.5 s, every persona's home
+  populated as described, purge → reseed works, a second run is a no-op, tests 225 + 1 skip.
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

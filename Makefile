@@ -1,4 +1,4 @@
-.PHONY: setup fetch-data up down logs ps health test psql migrate ingest gate reload-env llm-smoke seed-captures
+.PHONY: setup fetch-data demo up down logs ps health test psql migrate ingest gate reload-env llm-smoke seed-captures
 
 # Fresh clone → running app with data, in one command (idempotent; see scripts/setup.sh).
 setup:
@@ -7,6 +7,11 @@ setup:
 # Download data/raw/ from pinned, checksum-verified sources (skips files already verified).
 fetch-data:
 	scripts/fetch_data.sh
+
+# The full demo story (every persona has history; template narratives, labelled synthetic captures).
+# Usage: make demo   |   make demo ARGS=--purge   |   make demo ARGS=--llm
+demo:
+	docker compose exec api python -m app.demo.story $(ARGS)
 
 # -V renews anonymous volumes: web's node_modules would otherwise survive a dependency change.
 # The database uses a named volume (pgdata), which is kept.

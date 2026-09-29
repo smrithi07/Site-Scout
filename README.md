@@ -30,7 +30,8 @@ Deeper design notes live in [`docs/`](docs/): [`DESIGN.md`](docs/DESIGN.md) (ful
 
 ```bash
 git clone <this repo> && cd savomart-fullstack-hackathon-2026-22pd33
-make setup
+make setup     # running app with data
+make demo      # optional: the full demo story, so every persona opens with history (~5 s)
 ```
 
 `make setup` ([`scripts/setup.sh`](scripts/setup.sh)) is idempotent (safe to re-run) and does, in order:
@@ -79,26 +80,43 @@ make ingest                                  # new data snapshot (~90 s)
 make health                                  # {"status":"ok", ...}
 ```
 
-### 1.4 Walk the loop
+### 1.4 The demo story (`make demo`)
 
-A fresh database has data but no workflow history yet. The shortest end-to-end path:
+[`backend/app/demo/story.py`](backend/app/demo/story.py) plays a full story **through the real API**
+(each step as the right user, with a reason, so audit trail, validation, versions and jobs are
+genuine):
+
+| Who | What they'll find |
+|---|---|
+| **Meera** | Area reports for T Nagar (600017) and the top opportunity pocket; two scout tasks; 7 properties across the pipeline; property **#1 with evaluation v2** and the full *What changed v1 → v2* diff |
+| **Karthik** | Two tasks, a photo follow-up waiting on him, a possible duplicate to resolve, a Needs Info property (area missing) |
+| **Divya** | One study to plan (opportunity-map site), one being surveyed (it reused 54% of the first study's fresh lanes), one complete with its Catchment Summary |
+| **Arjun** | U1 of the second study, 10 of 17 lanes done, including one "could not survey" (gated lane) |
+
+Along the way: a site ~200 m from an existing Savomart store is capped by the hard flag and rejected, and the
+first study reuses labelled past data and surveys only the gap (8 units, 156 lanes).
+
+**What's synthetic, and labelled as such:** lane observations (plausible counts by road type) are
+stored with `source = demo_seed`, so every summary and v2 evaluation built on them says **mock**;
+capture times are spread over the last few days and time bands. Narratives use the deterministic
+template (no LLM calls; `make demo ARGS=--llm` to let the configured provider write them).
+`make demo ARGS=--purge` removes the story; running `make demo` twice is a no-op.
+
+### 1.5 Walk the loop yourself
 
 1. **Meera (BD Manager)** → *Opportunities* → **Run analysis** on a pocket, or *Analyse area* →
-   pincode `600017` → **Run analysis**. On the report, create a **scout task** from the hotspots
-   for Karthik.
+   a pincode → **Run analysis**. On the report, create a **scout task** from the hotspots for Karthik.
 2. **Karthik (BD Executive)** → the task → **Add property** (GPS or tap the map; rent, area, frontage…).
    It saves first, then evaluates (v1).
-3. **Meera** → *Pipeline* → the property → move it *Under review* → *Shortlisted* → **Request study**.
-   *(Optional, to demo reuse: `make seed-captures PROPERTY=<id>` seeds labelled mock past captures
-   around it first.)*
-4. **Divya (Survey Manager)** → the study → decide reuse → **Plan** (units are generated) →
-   edit if needed → **assign** units to Arjun.
+3. **Meera** → *Pipeline* → the property → *Under review* → *Shortlisted* → **Request study**.
+4. **Divya (Survey Manager)** → the study → decide reuse → **Plan** (units are generated) → edit if
+   needed → **assign** units to Arjun.
 5. **Arjun (Survey Executive)** → *My units* → capture each lane (works offline; queued sends) →
    **Submit unit**.
 6. The last submission rolls the study up into a **Catchment Summary**, which triggers
-   **evaluation v2**. **Meera** sees *What changed: v1 → v2* on the property.
+   **evaluation v2**; Meera sees *What changed: v1 → v2* on the property.
 
-### 1.5 Tests
+### 1.6 Tests
 
 ```bash
 make test      # 226 tests, ~40 s, inside the api container. Never call a real LLM API.
@@ -402,8 +420,8 @@ The full log with measurements is [`docs/DECISIONS.md`](docs/DECISIONS.md). The 
 
 **Known issues / limits**
 
-- **No seeded demo workflow**: a fresh database has data but no reports, properties or studies until
-  you walk the loop (§1.4). Next: a `make demo` seed that creates them through the API.
+- **The demo story's field data is synthetic** (labelled mock throughout); capture timestamps are
+  spread over past days although the story's other events are stamped at seeding time.
 - **Study thresholds are uncalibrated** (config assumptions), so v1 → v2 point changes for switched
   factors are directional. Needs real surveys to calibrate.
 - **OSM competition is a lower bound**: a demo survey found ~12× more shops than OSM in one

@@ -24,6 +24,11 @@ from app.services import rollup, units
 from app.services.studies import time_band
 
 
+# Provenance of captures written through this service. Always "field" for the API; only the
+# in-process demo story (`app/demo/story.py`) sets "demo_seed", so synthetic lanes roll up as mock.
+SOURCE = "field"
+
+
 def _cfg() -> dict:
     return load_config()["studies"]["capture"]
 
@@ -79,7 +84,7 @@ def capture(db: Session, user: User, body) -> tuple[SegmentCapture, bool, list[d
     previous = db.scalar(select(func.count()).select_from(SegmentCapture).where(
         SegmentCapture.study_id == study.id, SegmentCapture.segment_id == body.segment_id))
     c = SegmentCapture(client_id=str(body.client_id), study_id=study.id, unit_id=u.id, snapshot_id=study.snapshot_id,
-                       segment_id=body.segment_id, geom=gps.ewkt, captured_by=user.id, source="field",
+                       segment_id=body.segment_id, geom=gps.ewkt, captured_by=user.id, source=SOURCE,
                        status=body.status, reason=(body.reason or "").strip() or None, captured_at=at,
                        time_band=time_band(at), lat=body.lat, lon=body.lon, gps_accuracy_m=body.gps_accuracy_m,
                        gps_distance_m=round(gps.d, 1),
