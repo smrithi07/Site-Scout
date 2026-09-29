@@ -802,6 +802,23 @@ Reported: a 0.8 km unit in 17 disconnected parts (study #52). Measured before ch
 - **Test hygiene found**: two concurrent `make test` runs share the test DB and "test" queue — they
   steal each other's jobs (lease_lost), deadlock, and purge each other's fixtures. Run one at a time.
 
+## Phase 12b decisions (fresh clone → running app)
+
+- **Every raw file re-traced to a public, byte-identical source** and pinned by sha256 in
+  `scripts/fetch_data.sh`: Geofabrik dated extract, Microsoft tiles (URLs from the release index),
+  OpenCity KML resource URLs (via its CKAN API), datameet `Chennai/boundary.geojson`, and the
+  pincode CSV inside the `bharatpin` 1.0.1 wheel. A mismatch is an error, never accepted. The Stores
+  API stays token-gated (read from `.env`). A guessed URL for one Microsoft tile was wrong — found
+  by checking the index, which is why every URL is verified by checksum rather than trusted.
+- **`make setup` is idempotent**: `.env` from the example with a random `APP_SECRET`; verified files
+  skipped; migrations run in a one-off container **before** the api starts (the api registers the
+  config at startup and can't boot on an empty schema, and `--reload` wouldn't restart it after a
+  later migrate); ingest `--if-empty` skips when a ready snapshot exists.
+- **Tested for real**: a clean clone under a separate compose project and volume (`sitescout_fresh`),
+  the main stack stopped meanwhile (its volume untouched) and restarted after. Result: 1 m 48 s to a
+  running app, opportunity map identical (Pudupet 77.3), 225 tests pass + 1 skip by design (needs two
+  snapshots), re-run 16 s. The test project was removed with its volume.
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

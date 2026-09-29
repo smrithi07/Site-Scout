@@ -250,5 +250,8 @@ frontend to hide a field.
 - Phase 12 started: `README.md` rewritten to the brief's checklist (setup, demo users, architecture
   + features diagrams in `docs/images/*.svg`, data model, sources, scoring/AI, trade-offs, known
   issues, AI tool use; video link is a placeholder), `.env.example` restored (placeholders only).
-- Next step: **Phase 12** (rest) — hardening (README, fresh-clone one-command run + demo data,
+- Phase 12b done: `make setup` (`scripts/setup.sh`) fresh clone → running app; `make fetch-data`
+  (`scripts/fetch_data.sh`, sha256-pinned sources); `python -m ingest build --if-empty`. README §1
+  rewritten around it; README §3 has features by persona + the full feature list.
+- Next step: **Phase 12c** (demo seed so a fresh install opens with history), then 12d — hardening (README, fresh-clone one-command run + demo data,
   production build incl. the MapLibre worker asset, edge-case pass).

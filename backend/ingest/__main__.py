@@ -1,6 +1,7 @@
 """Offline ingest CLI. Never imported by the API or worker at request time.
 
     python -m ingest build    # new data snapshot: reference data + OSM + cell features; marks it `ready`
+    python -m ingest build --if-empty   # …only if no `ready` snapshot exists yet (used by `make setup`)
     python -m ingest gate     # Phase 2 data-quality report on the active snapshot (read-only)
     python -m ingest prune    # delete `failed` snapshots and their partial rows
 
@@ -35,7 +36,13 @@ STEPS = [load_zones, load_wards, build_service_area, load_post_offices, load_pin
          load_stores, build_grid, load_osm, load_ml_buildings, build_cell_features, build_localities]
 
 
-def build() -> int:
+def build(if_empty: bool = False) -> int:
+    if if_empty:
+        with engine.begin() as conn:
+            ready = conn.execute(text("SELECT max(id) FROM data_snapshots WHERE status = 'ready'")).scalar()
+        if ready is not None:
+            print(f"snapshot {ready} is ready; nothing to build (run without --if-empty for a new snapshot)")
+            return 0
     with engine.begin() as conn:
         register_config(conn)  # the version stamped on the snapshot must be a registered one
         s = conn.execute(text("""INSERT INTO data_snapshots (status, config_version, stats)
@@ -81,7 +88,11 @@ def prune() -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(prog="python -m ingest")
     parser.add_argument("command", choices=["build", "gate", "prune"])
-    return {"build": build, "gate": gate, "prune": prune}[parser.parse_args().command]()
+    parser.add_argument("--if-empty", action="store_true", help="build: skip if a ready snapshot exists")
+    args = parser.parse_args()
+    if args.command == "build":
+        return build(args.if_empty)
+    return {"gate": gate, "prune": prune}[args.command]()
 
 
 if __name__ == "__main__":

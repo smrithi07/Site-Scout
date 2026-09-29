@@ -26,54 +26,58 @@ Deeper design notes live in [`docs/`](docs/): [`DESIGN.md`](docs/DESIGN.md) (ful
 **Prerequisites:** Docker Desktop (Compose v2), `make`, `curl`, ~3 GB free disk. Tested on macOS
 (Apple Silicon); the PostGIS image is multi-arch.
 
-### 1.1 Configure
+### 1.1 One command
 
 ```bash
 git clone <this repo> && cd savomart-fullstack-hackathon-2026-22pd33
-cp .env.example .env
+make setup
 ```
 
-Edit `.env`: set a database password (in both `POSTGRES_PASSWORD` and `DATABASE_URL`) and a random
-`APP_SECRET` (≥ 16 characters). LLM keys are **optional**: without them every narrative falls back to
-the deterministic template, and the app is otherwise fully functional.
+`make setup` ([`scripts/setup.sh`](scripts/setup.sh)) is idempotent (safe to re-run) and does, in order:
 
-### 1.2 Get the raw data (offline, once)
+1. **`.env`**: created from [`.env.example`](.env.example) with a random `APP_SECRET` if it doesn't
+   exist. Add `SAVO_STORES_TOKEN` (needed once, to download the store list) before the first run.
+   LLM keys are **optional**: without them every narrative uses the deterministic template.
+2. **Raw data** (`make fetch-data`, [`scripts/fetch_data.sh`](scripts/fetch_data.sh)): downloads every
+   dataset into `data/raw/` (git-ignored, ~630 MB) and **checks each file's sha256** against the exact
+   files the snapshot was built and validated on. Verified files are skipped; a mismatch is an error.
+3. **Database + schema**: starts PostGIS and runs the migrations (schema, triggers, the 4 demo users,
+   config registry).
+4. **Services**: api, worker and web, waiting until `/health` is ok.
+5. **Data snapshot**: `make ingest` builds snapshot #1 (~90 s), skipped if one already exists.
 
-Analysis never calls an external API at run time (§9). Everything is ingested from files in
-`data/raw/`, which is git-ignored because of size (~630 MB). Put these files at exactly these paths:
-
-| Path under `data/raw/` | Source | Notes |
-|---|---|---|
-| `osm/southern-zone-260927.osm.pbf` | [Geofabrik India › Southern Zone](https://download.geofabrik.de/asia/india/southern-zone.html) | ~558 MB. The config pins this file name; md5 `58841e22d4aa4e17f4420eea1eb8b2f2` |
-| `buildings_ms/india_123312201.csv.gz`, `…203`, `…210`, `…212` | [Microsoft Global ML Building Footprints](https://github.com/microsoft/GlobalMLBuildingFootprints), rows for these quadkeys in `dataset-links.csv` | 4 files, ~70 MB |
-| `wards/wards_2022.kml`, `wards/zones_2022.kml` | [OpenCity — GCC Ward Information](https://data.opencity.in/) | 200 wards, 15 zones |
-| `pincode/chennai_boundary_datameet.geojson` | [datameet/PincodeBoundary](https://github.com/datameet/PincodeBoundary) (Chennai folder) | 68 polygons |
-| `pincode/pincode_directory_bharatpin.csv` | CSV bundled in the [`bharatpin`](https://pypi.org/project/bharatpin/) PyPI package | India Post directory |
-| `stores/stores_YYYYMMDD.json` | Savomart Stores API (command below) | Newest file wins |
-
-```bash
-# Stores API: GET (the brief's curl example forces POST, which returns 405). Token in .env.
-set -a; source .env; set +a
-mkdir -p data/raw/stores
-curl -sS 'https://internal-service.savomart.in/bridge/api/store/list?is_operational=True' \
-  -H "X-cron-token: $SAVO_STORES_TOKEN" -o "data/raw/stores/stores_$(date +%Y%m%d).json"
-```
-
-Full provenance (licences, retrieval dates, row counts, checksums): [`data/MANIFEST.md`](data/MANIFEST.md).
-
-### 1.3 Start, build the schema, ingest
-
-```bash
-make up        # postgis + api + worker + web (first build takes a few minutes)
-make migrate   # schema, triggers, the 4 demo users, config registry
-make ingest    # builds data snapshot #1 from data/raw (~90 s): wards, pincodes, stores, H3 grid,
-               # OSM roads/POIs/land use, ML buildings, per-cell features, locality index
-make health    # {"status":"ok", ...}
-```
+Measured from a fresh clone with the data already downloaded: **1 m 48 s** to a running app; a re-run
+takes ~16 s. The first download adds ~3–10 min depending on the network.
 
 - **Web:** http://localhost:5173 (choose a user on the landing page)
 - **API:** http://localhost:8000, interactive docs at http://localhost:8000/docs
 - `make reload-env` after editing `.env` (containers read it only when created).
+
+### 1.2 Where the raw data comes from
+
+Analysis never calls an external API at run time (§9); `make fetch-data` downloads these once:
+
+| Path under `data/raw/` | Source | Notes |
+|---|---|---|
+| `osm/southern-zone-260927.osm.pbf` | [Geofabrik India › Southern Zone](https://download.geofabrik.de/asia/india/southern-zone.html), dated extract | ~558 MB |
+| `buildings_ms/india_1233122{01,03,10,12}.csv.gz` | [Microsoft Global ML Building Footprints](https://github.com/microsoft/GlobalMLBuildingFootprints), release 2026-02-03 | 4 quadkey tiles, ~70 MB |
+| `wards/wards_2022.kml`, `wards/zones_2022.kml` | [OpenCity — GCC Ward Information](https://data.opencity.in/dataset/gcc-ward-information) | 200 wards, 15 zones |
+| `pincode/chennai_boundary_datameet.geojson` | [datameet/PincodeBoundary](https://github.com/datameet/PincodeBoundary) `Chennai/boundary.geojson` | 68 polygons |
+| `pincode/pincode_directory_bharatpin.csv` | `bharatpin/data/pincodes.csv` inside the [`bharatpin` 1.0.1](https://pypi.org/project/bharatpin/) wheel | India Post directory |
+| `stores/stores_YYYYMMDD.json` | Savomart Stores API, `GET` with `X-cron-token` (the brief's example forces `POST`, which returns 405) | Needs `SAVO_STORES_TOKEN`; the newest file wins |
+
+Full provenance (licences, retrieval dates, row counts): [`data/MANIFEST.md`](data/MANIFEST.md).
+
+### 1.3 Step by step (what `make setup` runs)
+
+```bash
+make fetch-data                              # verified downloads
+docker compose up -d --build --wait db       # PostGIS
+docker compose run --rm api alembic upgrade head
+make up                                      # api + worker + web
+make ingest                                  # new data snapshot (~90 s)
+make health                                  # {"status":"ok", ...}
+```
 
 ### 1.4 Walk the loop
 
@@ -100,7 +104,8 @@ A fresh database has data but no workflow history yet. The shortest end-to-end p
 make test      # 226 tests, ~40 s, inside the api container. Never call a real LLM API.
 ```
 
-Run one `make test` at a time: runs share the test database and job queue.
+Run one `make test` at a time: runs share the test database and job queue. On a fresh install one
+test is skipped by design (cross-snapshot matching needs a second data snapshot).
 
 ---
 
@@ -110,7 +115,7 @@ There are no passwords: the landing page and the header's **role switcher** sign
 seeded users (a real HMAC-signed bearer token per user). Access rules are enforced **server-side**
 (role checks → 403, per-role response builders strip fields), never by hiding buttons.
 
-| id | User | Role | Lands on | Can |
+| id | User | Role | Lands on | In short (details in [§3.1](#31-features-by-persona)) |
 |---|---|---|---|---|
 | 1 | **Meera** | BD Manager | Home → Analyse / Opportunities / Reports / Pipeline | Run and compare area reports, opportunity map, create scout tasks, see all properties, **the only role that moves pipeline stages**, request studies |
 | 2 | **Karthik** | BD Executive | My tasks | See tasked hotspots, onboard properties, see own properties, answer follow-ups |
@@ -126,12 +131,80 @@ API: `POST /auth/demo-login {"user_id": 1..4}` → `{"token": ...}`; send `Autho
 
 ![Features and how they connect](docs/images/features.svg)
 
-| Module | Highlights |
-|---|---|
-| **M1 · Area intelligence** | Three ways to pick an area (pincode, locality search, cells on the map), all resolved to the same H3 cell set, with add/remove edits; an **explainable** report (raw → normalised → weight → contribution per factor, with provenance); hotspots with a "why scout here"; immutable versions; side-by-side compare that flags different data/config versions |
-| **M2 · Scouting & evaluation** | Scout tasks from hotspots; a mobile-first property form (GPS/tap-to-pin, live location check, rent-band hint, local drafts, idempotent submit, photos); duplicate detection with an explicit "same / different" choice; deterministic 7-factor evaluation with hard flags and rule-based risks; a 30-second review card; a pipeline board where every move needs a reason; a manager ↔ executive follow-up loop |
-| **M3 · Catchment study** | Per-road-segment reuse of fresh past survey data (length-weighted coverage, overrides with reasons, stale data never reused silently); survey units generated as contiguous walks, editable (move / split / merge) with the one-segment-one-unit invariant re-checked after every edit; phone lane capture with drafts, an offline queue and idempotent sends; a roll-up job producing an immutable Catchment Summary; **v2 evaluation + classified diff + validated narrative** |
-| **Bonus · Opportunity map** | Every rated cell in Chennai scored; un-scouted high-scoring pockets surfaced (cells with a property, a live scout task or a Savomart store are skipped with the reason); **Run analysis** on a pocket reproduces its score exactly |
+### 3.1 Features by persona
+
+**Meera — BD Manager** (decides where to open)
+- **Analyse an area**: pick by pincode, locality search or cells on the map; preview the boundary,
+  add/remove cells, see earlier reports of the same area, then run.
+- **Area Fitness Report**: score, rating and confidence; every factor as raw → normalised → weight →
+  contribution with its provenance; hotspots with "why scout here"; facts, caveats, a validated
+  narrative (and who wrote it); "data as of" stamps; run again as a new version.
+- **Reports and compare**: every run kept by area; tick two to compare side by side (flags different
+  data or config versions).
+- **Opportunity map** (bonus): the best un-scouted pockets across Chennai; run an analysis on one in
+  a click, or adjust its cells first.
+- **Scout tasks**: turn a report's hotspots into a task for a BD Executive.
+- **Pipeline board**: every property by stage, best-rated first.
+- **Property review**: a 30-second card (rating, top risks, rent vs band, completeness,
+  duplicates), next step, full breakdown with version picker, re-evaluate, map, photos, notes, history.
+- **Stage moves and follow-ups**: move stages with a reason (a stale edit is caught and re-confirmed);
+  ask the executive for more (photos, revisit, rent check).
+- **Request a catchment study**: see fresh-data coverage first; waive or force reuse with a reason.
+- **What changed v1 → v2**: the re-evaluation after a study, every factor change classified,
+  with a narrative.
+
+**Karthik — BD Executive** (finds and onboards sites)
+- **My tasks**: assigned tasks, open follow-ups and unsent drafts on one screen.
+- **Task map**: the task's cells with numbered hotspots and a route into the property form.
+- **Add property** (phone-first): GPS or tap-to-pin with a live location check (inside Chennai, not in
+  water, GPS accuracy), locality prefilled, rent-band hint, frontage, visibility, owner contact.
+  Autosaves a draft; the submit is idempotent, so a retry never creates a duplicate.
+- **Duplicate check**: a nearby similar property is shown with two explicit choices, same or different.
+- **Photos and notes**; **follow-up answers** that send the property back for review.
+- **My properties**: each with its evaluation card (rating, risks, what's missing).
+
+**Divya — Survey Manager** (plans the field work)
+- **Studies inbox**: requested and running studies. Property details arrive **without** rent,
+  deposit or owner fields.
+- **Reuse decision**: the catchment's lanes coloured fresh / stale / uncovered, length-weighted
+  coverage, and the final say on the mode (reuse and fill, reuse only, full survey), with a reason.
+- **Survey units**: generated as contiguous walks balanced by time; select lanes on the map to move,
+  split or merge (the one-lane-one-unit rule is re-checked after every edit); assign to executives.
+- **Progress and close**: lanes surveyed / gaps per unit; close a study early or re-run the roll-up
+  (with a reason); the Catchment Summary card.
+
+**Arjun — Survey Executive** (walks the lanes)
+- **My units**: only the units assigned to him; the property is a label, nothing more.
+- **Unit map**: lanes numbered in walking order, coloured by status.
+- **Lane capture** (phone-first): a timer for the pedestrian count, steppers for homes / businesses /
+  grocery stores, anchors, road width, access and parking ratings, GPS or tap, or "could not survey"
+  with a reason. Autosaves; works offline with a send queue; sends are idempotent.
+- **Submit unit** when every lane is handled.
+
+### 3.2 Feature list
+
+| Feature | Module | Who | Short description |
+|---|---|---|---|
+| Area selection (3 modes) | M1 | BD Mgr | Pincode, locality or map cells, all resolved to the same H3 cells; size caps; edits; ambiguity never guessed |
+| Area Fitness Report | M1 | BD Mgr | Explainable 5-factor score with provenance, confidence, facts-only or insufficient-data when data is thin |
+| Hotspots | M1 | BD Mgr | Top fine cells, spread out, each with its two strongest reasons |
+| Report versions + compare | M1 | BD Mgr | Immutable reports per area; side-by-side diff that flags data/config differences |
+| Opportunity map | Bonus | BD Mgr | Citywide un-scouted pockets; start an analysis that reproduces the pocket score |
+| Scout tasks | M2 | BD Mgr → BD Exec | Cells + hotspots handed to an executive; status follows the work |
+| Property form | M2 | BD Exec | Save-first capture with GPS, validation, drafts, idempotent submit, photos |
+| Duplicate detection | M2 | BD Exec | ≤ 25 m + name similarity; explicit same/different resolution |
+| Property evaluation (v1) | M2 | system | 7 site factors, completeness gate (Needs Info), hard flags, rule-based risks |
+| Review card | M2 | BD Mgr | Decision-ready summary in ~30 seconds; full breakdown below |
+| Pipeline + audit | M2 | BD Mgr | Stage moves with reasons, optimistic locking, reject → reopen, full history |
+| Follow-up loop | M2 | BD Mgr ↔ BD Exec | Manager asks, executive answers, property returns to review |
+| Study request + reuse check | M3 | BD Mgr, Survey Mgr | Per-lane freshness (90 days), length-weighted coverage, audited overrides |
+| Survey units | M3 | Survey Mgr | Generated contiguous walks; move / split / merge / assign; invariant enforced |
+| Lane capture | M3 | Survey Exec | Raw observations per lane, offline queue, idempotent, GPS distance and time checks |
+| Roll-up → Catchment Summary | M3 | system | Surveyed lanes only, time-band mix, observed vs OSM competition, confidence; immutable |
+| Re-evaluation v2 + diff | M3 | system → BD Mgr | Observed signals replace estimates; every change classified; points add up |
+| Validated narratives | All | system | LLM phrases code-built facts; validator; Gemini → Groq → template |
+| Jobs with progress + retry | All | all | Step-by-step progress, named failed step, resume from it |
+| Role access + field masking | All | all | Server-side 403s and per-role responses |
 
 ---
 
@@ -329,7 +402,6 @@ The full log with measurements is [`docs/DECISIONS.md`](docs/DECISIONS.md). The 
 
 **Known issues / limits**
 
-- **Fresh-clone data download is manual** (§1.2). Next: a `make fetch-data` script with checksums.
 - **No seeded demo workflow**: a fresh database has data but no reports, properties or studies until
   you walk the loop (§1.4). Next: a `make demo` seed that creates them through the API.
 - **Study thresholds are uncalibrated** (config assumptions), so v1 → v2 point changes for switched
