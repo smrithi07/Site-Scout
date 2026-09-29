@@ -9,9 +9,10 @@ from app.jobs.context import Step
 
 @cache
 def kinds() -> dict[str, list[tuple[str, Step]]]:
-    from app.jobs import area_report, property_evaluation, selftest
+    from app.jobs import area_report, property_evaluation, selftest, study_rollup
     return {
         "selftest": selftest.STEPS,
         "area_report": area_report.STEPS,
         "property_evaluation": property_evaluation.STEPS,
+        "study_rollup": study_rollup.STEPS,
     }

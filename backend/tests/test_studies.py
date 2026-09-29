@@ -2,6 +2,7 @@
 fresh coverage and the oldest reused age; stale data is never reused; non-default modes need a
 reason at request (BD Manager) and at planning (Survey Manager, final say); everything is audited
 and the Survey Manager never sees commercial fields."""
+import json
 import uuid
 
 import pytest
@@ -13,6 +14,11 @@ from app.core.db import engine
 from tests.conftest import headers, purge_scouting_test_data
 
 BDM, BDE, SM, SE = (headers(r) for r in (Role.BD_MANAGER, Role.BD_EXECUTIVE, Role.SURVEY_MANAGER, Role.SURVEY_EXECUTIVE))
+# What an earlier survey recorded on a reused lane (every past capture carries valid observations).
+PAST_OBS = {"pedestrians_counted": 10, "count_minutes": 5, "residential_units": 20, "businesses": 2,
+            "grocery_food_stores": 0, "anchors": [], "road_width_band": "narrow", "pedestrian_access": "fair",
+            "vehicle_access": "fair", "parking": "none"}
+
 # A site no demo property uses: `make seed-captures` data elsewhere must not leak into these tests.
 STUDY_SITE = (13.1170, 80.2330)   # Perambur
 
@@ -52,12 +58,15 @@ def capture(segment_ids, days_ago, status="surveyed", snapshot_id=None, shift_de
     snap = active_snapshot()
     with engine.begin() as conn:
         conn.execute(text("""
-            INSERT INTO segment_captures (client_id, snapshot_id, segment_id, geom, status, reason, captured_at, notes)
+            INSERT INTO segment_captures (client_id, snapshot_id, segment_id, geom, status, reason, captured_at, notes,
+                                          time_band, observations)
             SELECT gen_random_uuid(), :snap, r.segment_id, ST_Translate(r.geom, :d, 0), CAST(:st AS text),
                    CASE WHEN CAST(:st AS text) = 'could_not_survey' THEN 'gate locked' END,
-                   now() - (:days * interval '1 day'), 'TEST capture'
+                   now() - (:days * interval '1 day'), 'TEST capture', 'midday',
+                   CASE WHEN CAST(:st AS text) = 'surveyed' THEN CAST(:obs AS jsonb) ELSE '{}'::jsonb END
             FROM road_segments r WHERE r.snapshot_id = :active AND r.segment_id = ANY(:ids)"""),
-            dict(snap=snapshot_id or snap, d=shift_deg, st=status, days=days_ago, active=snap, ids=list(segment_ids)))
+            dict(snap=snapshot_id or snap, d=shift_deg, st=status, days=days_ago, active=snap, ids=list(segment_ids),
+                 obs=json.dumps(PAST_OBS)))
 
 
 def request(client, p, mode="reuse_and_fill", reason=None, h=BDM):

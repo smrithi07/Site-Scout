@@ -165,3 +165,17 @@ def test_job_api_access_and_retry_conflict(client):
                         json={"reason": "retry please", "version": 1})
     assert stale.status_code == 409
     assert client.post("/jobs/selftest", headers=headers(Role.SURVEY_EXECUTIVE), json={}).status_code == 403
+
+
+def test_an_unknown_job_kind_fails_cleanly_instead_of_killing_the_worker():
+    """A worker running older code must fail the job with a clear error, not crash (Phase 10b)."""
+    from app.jobs.worker import run_once
+    with engine.begin() as conn:
+        job_id = conn.execute(text("""INSERT INTO jobs (kind, queue, payload) VALUES ('from_the_future', 'test', '{}')
+                                      RETURNING id""")).scalar()
+        conn.execute(text("INSERT INTO job_steps (job_id, idx, name) VALUES (:j, 0, 'first')"), dict(j=job_id))
+    assert run_once("w-test", {"queues": ["test"], "heartbeat_seconds": 1, "stale_after_seconds": 30,
+                               "max_attempts": 3}) == (job_id, "failed")
+    with engine.connect() as conn:
+        status, error = conn.execute(text("SELECT status, error FROM jobs WHERE id = :j"), dict(j=job_id)).one()
+    assert status == "failed" and "unknown job kind 'from_the_future'" in error

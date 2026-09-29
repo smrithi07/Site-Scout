@@ -8,6 +8,7 @@ Every row is `source = 'demo_seed'` (provenance: mock) — the UI and the roll-u
 """
 import argparse
 import json
+import math
 import random
 import uuid
 from collections import defaultdict, deque
@@ -26,16 +27,33 @@ NS = uuid.UUID("5a1f0c2e-8d7b-4c0e-9a51-5e5d0a7f3b10")
 MAIN = {"trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link"}
 
 
-def observations(rng: random.Random, highway: str) -> dict:
+def _count(rng: random.Random, per_m: float, length_m: float) -> int:
+    """A count for this lane from a rate per metre (Poisson), so density doesn't depend on how the
+    road happens to be split into lanes."""
+    lam, k, p = per_m * length_m, 0, 1.0
+    limit = math.exp(-lam)
+    while True:
+        p *= rng.random()
+        if p <= limit:
+            return k
+        k += 1
+
+
+def observations(rng: random.Random, highway: str, length_m: float) -> dict:
+    """Plausible for Chennai by road type, as rates × lane length (demo only — mock provenance):
+    homes 8–25 per 100 m on residential lanes (4–12 on main roads), businesses 0.5–2 per 100 m
+    (4–12 on main roads), grocery/food 1–3 per km (4–8), footfall 40–180/h (240–720/h)."""
     main = highway in MAIN
+    L = max(length_m, 5.0)
+    hourly = rng.uniform(240, 720) if main else rng.uniform(40, 180)
     obs = {
-        "pedestrians_counted": rng.randint(30, 150) if main else rng.randint(4, 40),
+        "pedestrians_counted": _count(rng, hourly / 12 / 1.0, 1.0),          # 5-minute count
         "count_minutes": 5,
-        "residential_units": rng.randint(5, 30) if main else rng.randint(10, 60),
-        "businesses": rng.randint(5, 25) if main else rng.randint(0, 5),
-        "grocery_food_stores": rng.randint(0, 4) if main else rng.choice([0, 0, 0, 1]),
+        "residential_units": _count(rng, rng.uniform(4, 12) / 100 if main else rng.uniform(8, 25) / 100, L),
+        "businesses": _count(rng, rng.uniform(4, 12) / 100 if main else rng.uniform(0.5, 2) / 100, L),
+        "grocery_food_stores": _count(rng, rng.uniform(4, 8) / 1000 if main else rng.uniform(1, 3) / 1000, L),
         "anchors": ([{"type": rng.choice(["school", "hospital", "transit", "office", "market", "temple"])}]
-                    if rng.random() < 0.05 else []),
+                    if rng.random() < L / 4000 else []),                  # ~1 anchor per 4 km of lane
         "road_width_band": rng.choice(["medium", "wide"]) if main else rng.choice(["narrow", "narrow", "medium"]),
         "pedestrian_access": rng.choice(["fair", "good"]),
         "vehicle_access": rng.choice(["good"] if main else ["poor", "fair", "good"]),
@@ -120,7 +138,7 @@ def seed(property_id: int, coverage: float, stale: float, gap: float, rng_seed: 
                 rows.append(dict(client_id=str(uuid.uuid5(NS, f"{s['segment_id']}")), snap=snap.id, seg=s["segment_id"],
                                  by=surveyor, status="could_not_survey" if blocked else "surveyed",
                                  reason="gated lane, no access" if blocked else None, at=at, band=time_band(at),
-                                 obs="{}" if blocked else json.dumps(observations(rng, s["highway"]))))
+                                 obs="{}" if blocked else json.dumps(observations(rng, s["highway"], s["length_m"]))))
         n = 0
         for r in rows:
             n += db.execute(text("""

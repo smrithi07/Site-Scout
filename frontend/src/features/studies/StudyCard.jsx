@@ -6,12 +6,14 @@ import { api } from '../../api/client'
 import { fmt } from '../../components/ScoreBreakdown'
 import { Card } from '../scouting/shared'
 import { CoverageBar, MODES, StatusBadge } from './reuse'
+import SummaryCard, { RollupStatus } from './SummaryCard'
 
 const OPEN = ['requested', 'planned', 'in_progress']
 
 export default function StudyCard({ propertyId, onChanged }) {
   const queryClient = useQueryClient()
-  const list = useQuery({ queryKey: ['studies', { property: propertyId }], queryFn: () => api(`/studies?property_id=${propertyId}`) })
+  const list = useQuery({ queryKey: ['studies', { property: propertyId }], queryFn: () => api(`/studies?property_id=${propertyId}`),
+                         refetchInterval: (q) => (['queued', 'running'].includes(q.state.data?.[0]?.rollup_job?.status) ? 2000 : false) })
   const [cancelling, setCancelling] = useState(false)
   const [reason, setReason] = useState('')
   const [error, setError] = useState(null)
@@ -32,6 +34,7 @@ export default function StudyCard({ propertyId, onChanged }) {
   }
 
   return (
+    <>
     <Card title={<>Catchment study #{s.id} <StatusBadge status={s.status} /></>}>
       <CoverageBar reuse={s.reuse} compact />
       <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
@@ -60,5 +63,8 @@ export default function StudyCard({ propertyId, onChanged }) {
       )}
       {error && <p className="mt-1 text-sm text-red-800">{error}</p>}
     </Card>
+    <RollupStatus study={s} />
+    {s.summary && <SummaryCard key={s.summary.id} studyId={s.id} />}
+    </>
   )
 }

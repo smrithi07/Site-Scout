@@ -34,13 +34,16 @@ services:
 
   api:
     <<: *backend
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app --reload-dir /config --reload-include '*.yaml'
     ports:
       - "8000:8000"
 
   worker:
     <<: *backend
-    command: python -m app.jobs.worker
+    # Dev: restart on code/config changes (uvicorn --reload does this for the api). A running job
+    # interrupted by a restart is re-queued by the heartbeat reaper and resumes at its failed step.
+    command: watchfiles "python -m app.jobs.worker" /app/app /config
+    restart: unless-stopped
 
   web:
     build: ./frontend

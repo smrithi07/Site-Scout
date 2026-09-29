@@ -63,6 +63,12 @@ def execute(job_id: int, worker_id: str, heartbeat_seconds: float) -> str:
             kind, payload = job.kind, job.payload
             steps = [(s.idx, s.name, s.status, s.output) for s in
                      db.query(JobStep).filter(JobStep.job_id == job_id).order_by(JobStep.idx)]
+        if kind not in kinds():
+            # Fail the job cleanly (never crash the worker): usually a worker running older code.
+            idx, name = next(((i, n) for i, n, st, _ in steps if st != "done"), (steps[0][0], steps[0][1]))
+            _start_step(job_id, idx, name, worker_id)
+            _fail(job_id, idx, name, worker_id, LookupError(f"unknown job kind {kind!r} — is the worker running current code?"))
+            return "failed"
         functions = dict(kinds()[kind])
         outputs = {name: out for _, name, status, out in steps if status == "done"}
 

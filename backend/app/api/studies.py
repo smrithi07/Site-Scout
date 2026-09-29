@@ -6,11 +6,13 @@ from sqlalchemy.orm import Session
 
 from app.core.auth import Role, require_roles
 from app.core.db import get_db
-from app.models import Property, Study, StudySegment, User
+from app.core.errors import NotFound
+from app.models import CatchmentSummary, Job, Property, Study, StudySegment, User
 from app.schemas.properties import property_response
 from app.schemas.studies import (
     CancelStudy,
     CaptureIn,
+    CloseStudy,
     PlanDecision,
     Regenerate,
     StudyRequest,
@@ -19,9 +21,10 @@ from app.schemas.studies import (
     UnitMove,
     UnitSplit,
     study_response,
+    summary_response,
     unit_response,
 )
-from app.services import captures, properties, studies, units
+from app.services import captures, properties, rollup, studies, units
 
 router = APIRouter(prefix="/studies", tags=["studies"])
 unit_router = APIRouter(tags=["studies"])
@@ -35,7 +38,17 @@ def _out(db: Session, study, user: User) -> dict:
     out = study_response(study, db.get(Property, study.property_id), user.role,
                          survey={"segments": count, "length_m": round(length)})
     out["units"] = units.summary(db, study.id)        # BD Manager: status only; the unit map is the Survey Manager's
+    job = db.get(Job, study.rollup_job_id) if study.rollup_job_id else None
+    out["rollup_job"] = {"id": job.id, "status": job.status, "error": job.error} if job else None
+    latest = _latest_summary(db, study.id)
+    out["summary"] = ({k: getattr(latest, k) for k in ("id", "version", "confidence", "facts_only", "created_at")}
+                      if latest else None)
     return out
+
+
+def _latest_summary(db: Session, study_id: int):
+    return db.scalar(select(CatchmentSummary).where(CatchmentSummary.study_id == study_id)
+                     .order_by(CatchmentSummary.version.desc()).limit(1))
 
 
 @router.get("/preview")
@@ -84,6 +97,31 @@ def cancel_study(study_id: int, body: CancelStudy, user: User = Depends(require_
     study = studies.cancel(db, user, study_id, body.version, body.reason)
     db.commit()
     return _out(db, study, user)
+
+
+# --- roll-up → Catchment Summary ----------------------------------------------------------
+
+@router.post("/{study_id}/rollup", status_code=202)
+def close_study(study_id: int, body: CloseStudy, user: User = Depends(require_roles(Role.SURVEY_MANAGER)),
+                db: Session = Depends(get_db)) -> dict:
+    """Roll up now: before every unit is in (reason required), or re-run into a new summary version."""
+    job_id = rollup.close_now(db, user, study_id, body.version, body.reason)
+    db.commit()
+    return {"job_id": job_id}
+
+
+@router.get("/{study_id}/summary")
+def latest_summary(study_id: int, version: int | None = None, user: User = Depends(managers),
+                   db: Session = Depends(get_db)) -> dict:
+    studies.visible(db, user, study_id)
+    s = (db.scalar(select(CatchmentSummary).where(CatchmentSummary.study_id == study_id, CatchmentSummary.version == version))
+         if version else _latest_summary(db, study_id))
+    if s is None:
+        raise NotFound(f"no catchment summary{f' v{version}' if version else ''} for study {study_id} yet")
+    out = summary_response(s)
+    out["versions"] = [v for (v,) in db.execute(select(CatchmentSummary.version).where(CatchmentSummary.study_id == study_id)
+                                               .order_by(CatchmentSummary.version.desc()))]
+    return out
 
 
 # --- survey units (Survey Manager edits/assigns; each edit re-validates one-segment-one-unit) ---

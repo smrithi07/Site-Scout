@@ -269,6 +269,7 @@ def summary(db: Session, study_id: int) -> dict:
     handled = sum(p["surveyed"] + p["gaps"] for p in prog.values())
     lanes = sum(u.segment_count for u in units)
     return {"count": len(units), "assigned": sum(u.assignee_id is not None for u in units),
+            "submitted": sum(u.status == "submitted" for u in units),
             "minutes_min": min(mins, default=None), "minutes_max": max(mins, default=None),
             "total_minutes": round(sum(mins), 1), "lanes": lanes, "handled": handled,
             "surveyed": sum(p["surveyed"] for p in prog.values()), "gaps": sum(p["gaps"] for p in prog.values()),

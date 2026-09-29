@@ -33,7 +33,11 @@ def main() -> None:
     worker_id = f"{socket.gethostname()}:{os.getpid()}"
     log.info("worker %s serving queues %s", worker_id, cfg["queues"])
     while True:
-        if run_once(worker_id, cfg) is None:
+        try:
+            if run_once(worker_id, cfg) is None:
+                time.sleep(cfg["poll_seconds"])
+        except Exception:  # one bad job or a DB blip must never stop the worker for everyone
+            log.exception("worker loop error; continuing")
             time.sleep(cfg["poll_seconds"])
 
 

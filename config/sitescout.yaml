@@ -1,6 +1,6 @@
 # Savo SiteScout config. Every snapshot records `version`. Bump it on ANY change below.
 # Weights/thresholds/radii/freshness/caps are filled in as each phase needs them (see docs/DESIGN.md).
-version: "0.13.0"
+version: "0.14.0"
 
 region:
   name: Greater Chennai Corporation
@@ -182,3 +182,17 @@ studies:
     gps_max_distance_m: 75            # farther than this from the lane → flagged (still saved)
     max_future_skew_minutes: 10       # device clock ahead of the server by more → refused
     max_backdate_days: 7              # an offline draft older than this → refused (resurvey it)
+  rollup:
+    # Lane captures → Catchment Summary (docs/DESIGN.md §7 Roll-up). Computed over SURVEYED lanes only.
+    min_coverage: 0.50                # surveyed length ÷ catchment length below this → facts only, no scores
+    confidence_coverage: {high: 0.80, medium: 0.50}
+    single_band_share: 0.85           # ≥ this share of surveyed length in one time band → footfall flagged
+    anchor_dedupe_m: 120              # same-type anchors closer than this (and same/unknown name) = one anchor
+    # UNCALIBRATED assumptions (no citywide survey baseline yet — stated in the UI and README):
+    # raw value that maps to 0 and to 100. Competition is inverted (fewer is better).
+    normalize:
+      residential_per_100m: [2, 30]
+      commercial_per_100m: [0.5, 10]
+      footfall_per_hour: [20, 400]
+      competition_per_km: [0, 8]
+    ordinal: {narrow: 0, medium: 0.5, wide: 1, poor: 0, fair: 0.5, good: 1, none: 0, limited: 0.5}

@@ -30,7 +30,7 @@ from app.core.config import load_config
 from app.core.errors import Conflict, Forbidden, NotFound, Unprocessable
 from app.core.locking import update_versioned
 from app.models import Property, Study, StudySegment, User
-from app.services import pipeline, units
+from app.services import pipeline, rollup, units
 from app.services.snapshots import active_snapshot
 
 MODES = ("reuse_and_fill", "reuse_only", "full_survey")
@@ -217,6 +217,9 @@ def plan(db: Session, actor: User, study_id: int, version: int, mode: str, reaso
     db.flush()
     db.refresh(study)
     built = units.generate(db, actor, study, reason=f"plan ({mode})")
+    if not built:                                # reuse only / nothing stale: summarise the reused data now
+        db.refresh(study)
+        rollup.maybe_start(db, study, actor)
     audit.record(db, actor=actor, entity_type="study", entity_id=study.id, action="planned", from_state=old,
                  to_state="planned",
                  reason=(reason or "").strip() or f"confirmed the requested reuse mode ({mode})",

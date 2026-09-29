@@ -39,7 +39,7 @@ FOLLOW_UP_FROM = {"scouted", "under_review", "shortlisted", "on_hold"}
 # Entered only by the study workflow (services/studies.py), never by a manual move.
 STUDY_FLOW = {
     "shortlisted": {"study_requested"},
-    "study_requested": {"study_in_progress", "shortlisted"},      # shortlisted = study cancelled
+    "study_requested": {"study_in_progress", "study_complete", "shortlisted"},  # complete: reuse only, nothing to survey
     "study_in_progress": {"study_complete", "shortlisted"},
 }
 
@@ -63,7 +63,7 @@ def actions(db: Session, p: Property) -> dict:
     return {"moves": [s for s in STAGES if s in MANAGER_MOVES[p.stage]], "follow_up": follow_up, "study": study}
 
 
-def study_transition(db: Session, actor: User, p: Property, to: str, *, reason: str, version: int,
+def study_transition(db: Session, actor: User | None, p: Property, to: str, *, reason: str, version: int,
                      details: dict | None = None) -> None:
     """Stage change caused by the study workflow (request, assignment, completion, cancellation)."""
     if to not in STUDY_FLOW.get(p.stage, set()):

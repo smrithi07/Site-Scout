@@ -11,6 +11,7 @@ import { useMapLayers } from '../areas/AnalysePage'
 import { isStale } from '../pipeline/Dialogs'
 import { Card } from '../scouting/shared'
 import { CoverageBar, MODES, STATE, STATE_ORDER, StatusBadge, catchmentOverlays, circle, reasonNeeded, unitColor, unitOverlays } from './reuse'
+import SummaryCard, { RollupStatus } from './SummaryCard'
 import UnitPanel from './UnitPanel'
 
 function PlanPanel({ s, onPlanned, onStale }) {
@@ -71,12 +72,41 @@ function PlanPanel({ s, onPlanned, onStale }) {
   )
 }
 
+function ClosePanel({ s, onDone }) {
+  const [reason, setReason] = useState('')
+  const [open, setOpen] = useState(false)
+  const [error, setError] = useState(null)
+  const running = ['queued', 'running'].includes(s.rollup_job?.status)
+  if (running || !['in_progress', 'complete'].includes(s.status)) return null
+  const openUnits = s.units.count - s.units.submitted
+  const needsReason = s.status === 'complete' || openUnits > 0
+  const label = s.status === 'complete' ? 'Re-run the summary (new version)' : openUnits ? `Close study now (${openUnits} unit(s) not submitted)` : 'Roll up now'
+  const go = async (e) => {
+    e.preventDefault(); setError(null)
+    try { await api(`/studies/${s.id}/rollup`, { method: 'POST', body: { version: s.version, reason: reason.trim() || null } }); setOpen(false); setReason(''); onDone() }
+    catch (err) { setError(err.message) }
+  }
+  if (!open) return <button onClick={() => setOpen(true)} className="text-sm text-brand underline">{label}…</button>
+  return (
+    <Card title={label}>
+      <form onSubmit={go} className="space-y-2">
+        {openUnits > 0 && s.status !== 'complete' && <p className="text-sm">The summary will use only what has been captured; lanes not surveyed are never filled in, and coverage below 50% gives facts only.</p>}
+        {needsReason && <input autoFocus required minLength={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason (recorded)" className="w-full rounded border px-2 py-1.5 text-sm" />}
+        {error && <p className="text-sm text-red-800">{error}</p>}
+        <div className="flex gap-2"><button className="rounded bg-brand px-3 py-1.5 text-sm font-semibold text-white">Start roll-up</button>
+          <button type="button" onClick={() => setOpen(false)} className="text-sm">Cancel</button></div>
+      </form>
+    </Card>
+  )
+}
+
 export default function StudyPage() {
   const { id } = useParams()
   const queryClient = useQueryClient()
   const layers = useMapLayers({ withGrid: false })
   const [flash, setFlash] = useState(null)
-  const study = useQuery({ queryKey: ['study', id], queryFn: () => api(`/studies/${id}`) })
+  const study = useQuery({ queryKey: ['study', id], queryFn: () => api(`/studies/${id}`),
+                          refetchInterval: (q) => (['queued', 'running'].includes(q.state.data?.rollup_job?.status) ? 2000 : false) })
   const s = study.data
   const segments = useQuery({ queryKey: ['study', id, 'segments', s?.version], queryFn: () => api(`/studies/${id}/segments`), enabled: !!s })
   const plan = useQuery({ queryKey: ['study', id, 'units', s?.version], queryFn: () => api(`/studies/${id}/units`),
@@ -114,6 +144,9 @@ export default function StudyPage() {
 
       <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         <div className="min-w-0 space-y-3">
+          <RollupStatus study={s} />
+          {s.summary && <SummaryCard key={s.summary.id} studyId={s.id} />}
+          <ClosePanel s={s} onDone={() => { queryClient.invalidateQueries({ queryKey: ['study', id] }); queryClient.invalidateQueries({ queryKey: ['summary', s.id] }) }} />
           <Card title="Existing survey data">
             <CoverageBar reuse={s.reuse} />
             <p className="mt-2 text-sm">To survey under {MODES[s.planned_mode ?? s.requested_mode].label.toLowerCase()}: <b>{s.survey.segments} lanes · {fmt(s.survey.length_m / 1000, 1)} km</b></p>

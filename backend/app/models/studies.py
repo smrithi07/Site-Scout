@@ -10,7 +10,7 @@
 from datetime import datetime
 
 from geoalchemy2 import Geometry
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, func, text
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, func, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -45,6 +45,7 @@ class Study(Base):
     planned_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     planned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cancel_reason: Mapped[str | None] = mapped_column(Text)
+    rollup_job_id: Mapped[int | None] = mapped_column(BigInteger)    # the latest roll-up job (progress in the UI)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     version: Mapped[int] = mapped_column(Integer, server_default="1")
@@ -108,4 +109,26 @@ class SegmentCapture(Base):
     gps_distance_m: Mapped[float | None] = mapped_column(Float)            # device fix → lane, checked server-side
     observations: Mapped[dict] = mapped_column(JSONB, server_default="{}")
     notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CatchmentSummary(Base):
+    """The roll-up of a study's lane data (docs/DESIGN.md §7). Immutable, versioned per study (a
+    re-run is v2, never an overwrite — DB trigger), stamped with snapshot + config version."""
+    __tablename__ = "catchment_summaries"
+    __table_args__ = (Index("uq_catchment_summaries_version", "study_id", "version", unique=True),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    study_id: Mapped[int] = mapped_column(ForeignKey("studies.id"), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    trigger: Mapped[str] = mapped_column(String(24))          # all_units_submitted | closed_early | reuse_only | rerun
+    coverage: Mapped[dict] = mapped_column(JSONB)             # lengths/shares: surveyed, gaps, not surveyed; sources
+    signals: Mapped[dict] = mapped_column(JSONB)              # per signal: value, unit, normalized, provenance, notes
+    anchors: Mapped[list] = mapped_column(JSONB)
+    confidence: Mapped[str] = mapped_column(String(8))        # high | medium | low
+    confidence_reasons: Mapped[list] = mapped_column(JSONB)
+    facts_only: Mapped[bool] = mapped_column(Boolean)
+    snapshot_id: Mapped[int] = mapped_column(ForeignKey("data_snapshots.id"))
+    config_version: Mapped[str] = mapped_column(String(32))
+    job_id: Mapped[int | None] = mapped_column(BigInteger)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

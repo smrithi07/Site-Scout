@@ -705,6 +705,43 @@ Reported: a 0.8 km unit in 17 disconnected parts (study #52). Measured before ch
   fetch" — cached data now stays on screen with a "No connection" note.
 - Cut: capture photos (design: optional). Notes cover it for now.
 
+## Phase 10b decisions (roll-up → Catchment Summary)
+
+- **Which capture counts per lane**: its latest capture in this study; otherwise the fresh capture
+  the plan reused (never under full survey). Aggregates use **surveyed lanes only**; could-not-
+  survey lanes are handled but carry no data; unsurveyed lanes are never filled in. The single
+  labelled exception is the competition estimate across the whole catchment ("assumes unsurveyed
+  lanes are similar").
+- **Signals** (hand-checked in `tests/test_rollup.py`): residential and commercial per 100 m
+  (sum ÷ surveyed length); footfall = timed count → hourly rate, length-weighted, with the time-band
+  mix, flagged when ≥ 85% of length is one band; accessibility = ordinal mean of road width,
+  pedestrian and vehicle access + share rated poor; parking = ordinal mean + share with parking;
+  competition = stores per km of surveyed lane, catchment estimate, and OSM's competitor count in
+  the same 600 m; anchors de-duplicated (same type, same or unknown name, within 120 m).
+- **Provenance per lane** (observed / observed · reused survey / mock); a signal takes a source's
+  label when it is ≥ 90% of surveyed length, else "mixed", with exact shares always shown.
+- **Scores** use `studies.rollup.normalize` thresholds — **uncalibrated assumptions**, said so in
+  config and UI. **Below 50% coverage: facts only** — every score is withheld, the numbers remain.
+- **Confidence**: coverage (≥ 80% high, ≥ 50% medium, else low), then one level down for each of:
+  single time band, reuse only, > 50% reused data, > 50% demo data. Reasons are listed.
+- **A job** (`study_rollup`: collect → aggregate (pure) → save) writes an **immutable, versioned
+  summary** (DB trigger) and completes the study (property → study complete via the study
+  workflow). Triggers: the last unit submitted; planning with nothing to survey (reuse only); the
+  Survey Manager closing early (reason required) or re-running (reason, new version). A second
+  roll-up while one is queued/running is a 409.
+- **Robustness found while testing**: the worker ran old code (no reload), met the new job kind,
+  raised out of its loop and **died**, leaving the job "running". Fixed three ways — the runner
+  fails an unknown kind cleanly, the worker loop survives any per-job error, and compose restarts
+  the worker (`restart: unless-stopped`) and reloads it on code/config changes (`watchfiles`; the
+  api reload now also watches `/config`). The new worker's reaper re-queued the stuck job, which
+  then succeeded — the designed recovery path.
+- **Demo seed corrected again**: counts were drawn per lane regardless of length (avg lane ≈ 75 m),
+  giving 586 pedestrians/h and "OSM undercounts 63×". Counts are now Poisson draws from per-length
+  rates by road type (homes 8–25 / 100 m residential, 4–12 main; businesses 0.5–2 / 4–12 per
+  100 m; grocery 1–3 / 4–8 per km; footfall 40–180 / 240–720 per hour). Demo studies were rebuilt
+  through the API with reasons: #795 (property 197, in progress, U1 → Arjun) and #796 (property 52,
+  closed early → summary v1). The old #480 summary stays on record (immutable).
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

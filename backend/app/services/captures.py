@@ -20,7 +20,7 @@ from app.core.auth import Role
 from app.core.config import load_config
 from app.core.errors import Conflict, Forbidden, NotFound, Unprocessable
 from app.models import SegmentCapture, Study, StudySegment, SurveyUnit, User
-from app.services import units
+from app.services import rollup, units
 from app.services.studies import time_band
 
 
@@ -114,6 +114,7 @@ def submit_unit(db: Session, user: User, unit_id: int) -> SurveyUnit:
                  reason=f"{u.label} submitted: {prog['surveyed']} surveyed, {prog['gaps']} could not survey",
                  details={"unit_id": u.id, **prog})
     db.flush()
+    rollup.maybe_start(db, study, user)          # the last unit in → roll-up job
     db.refresh(u)
     return u
 

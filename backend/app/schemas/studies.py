@@ -110,6 +110,20 @@ class UnitAssign(BaseModel):
     assignee_id: int | None                        # None = unassign (only before any capture)
 
 
+class CloseStudy(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    version: int
+    reason: str | None = Field(None, max_length=500)   # required when units are open, or for a re-run
+
+
+SUMMARY_FIELDS = ("id", "study_id", "version", "trigger", "coverage", "signals", "anchors", "confidence",
+                  "confidence_reasons", "facts_only", "snapshot_id", "config_version", "job_id", "created_at")
+
+
+def summary_response(s: Any) -> dict:
+    return {k: getattr(s, k) for k in SUMMARY_FIELDS}
+
+
 class Regenerate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     version: int
