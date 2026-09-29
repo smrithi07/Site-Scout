@@ -634,6 +634,47 @@ Phase 6 split: **6a** = tasks, save-first properties, validation, duplicates, ph
   Capture itself is Phase 10.
 - Survey roles no longer request `/reference/stores` (BD-only on the API) — no 403 noise.
 
+## Unit fragmentation fix (after Phase 9b review)
+
+Reported: a 0.8 km unit in 17 disconnected parts (study #52). Measured before changing anything:
+
+- **The partitioner was not the cause of that case.** Pieces equalled the floor — the number of
+  connected stretches among the to-survey lanes (study #52: 57 lanes in 41 stretches, 33 of them
+  single lanes; #173: 51 stretches) — and no stretch was split across units. The fragmentation was
+  in the **demo seed**: it marked a uniformly random 85% of lanes fresh, so the leftover gaps were
+  isolated single lanes. Real past surveys cover contiguous walks, so stale/never-surveyed areas
+  come in blocks.
+- **Seed fixed**: `make seed-captures` now grows contiguous past-unit clusters (~2.5 km, one field
+  day each) over the road graph, folds 1–2-lane remnants into a neighbouring cluster, marks whole
+  clusters fresh / stale / never surveyed, and puts could-not-survey as single gated lanes inside
+  surveyed walks. Over 5 random seeds: #197's stretches went 48 → 1.6 (avg 76 m → 1.7 km).
+- **With realistic data the partitioner did over-split**: its all-units-at-once growth (least-loaded
+  takes nearest) made units interleave along one long stretch (1.6–2.4 stretches → 5–10 pieces,
+  worst unit 9 parts). Replaced (config `studies.units.method: peel`, 0.12.0) by **stretch-first
+  peeling**: short stretches (< 120 min) attach to the nearest long stretch by road; each group is
+  one unit if its estimate (including walks to attached stubs) is ≤ 180 min, else it is peeled
+  into ⌈minutes / 150⌉ contiguous units — one at a time from the edge of what's left, growing only
+  through lanes touching the unit, each aiming at what's left ÷ units left and stopping where it is
+  closest to that share. Benchmark (5 seeds × 2 demo properties + 4 full-survey catchments, same
+  estimate for both):
+
+  | | grow (old) | peel (new) |
+  |---|---|---|
+  | demo: pieces / unit (worst) | 1.7–2.0 (9) | 1.3 (2–4) |
+  | full survey: pieces / unit (worst) | 1.4–2.0 (5) | 1.3–1.7 (5) |
+  | unit minutes range | 92–180 | 91–180 (91 only where the whole study is ~4.5 h) |
+  | walking share | 5–8% | 3–5% |
+  | time | ≤ 1.2 s | ≤ 0.6 s |
+
+  Pure tests (`tests/test_partition.py`) pin it: one long street → every unit one piece; 8×8 and
+  12×12 street grids → ≤ 2 pieces per unit and balanced; a stale block inside reused lanes stays
+  whole. `grow` stays selectable so the benchmark can be re-run.
+- A mis-step, recorded: I first read study #479 as "3 stretches → ideally 3 units" and lowered the
+  stub threshold; it was one 331-min stretch + two 20-min stubs (optimum 5 pieces for 3 units; we
+  make 6), and the lower threshold hurt balance elsewhere — reverted.
+- Demo studies were cancelled with a reason and rebuilt on the new seed through the API: #479
+  (property 197, 3 units of ~2.1 h) and #480 (property 52, 5 units of 2.4–2.5 h, 1–2 parts each).
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

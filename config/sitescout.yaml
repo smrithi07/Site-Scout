@@ -1,6 +1,6 @@
 # Savo SiteScout config. Every snapshot records `version`. Bump it on ANY change below.
 # Weights/thresholds/radii/freshness/caps are filled in as each phase needs them (see docs/DESIGN.md).
-version: "0.11.0"
+version: "0.12.0"
 
 region:
   name: Greater Chennai Corporation
@@ -167,8 +167,10 @@ studies:
   # unchanged within this tolerance (Hausdorff, metres) — ids are only stable per snapshot.
   cross_snapshot_match_m: 10
   units:
-    # Survey unit generation (services/partition.py). Benchmarked on 4 catchments: region growing +
-    # smoothing keeps every unit inside [min, max] with 1.5–2.1 pieces/unit (docs/DECISIONS.md 8b).
+    # Survey unit generation (services/partition.py); benchmarks in docs/DECISIONS.md (8b, 9b fix).
+    # peel = one contiguous unit at a time from the edge of what's left (fewest pieces, balanced);
+    # grow = all units at once, least-loaded takes nearest (interleaves along long stretches).
+    method: peel
     walk_speed_m_per_min: 70           # ~4.2 km/h on foot
     capture_minutes_per_segment: 6     # 5-minute timed pedestrian count + the form
     target_unit_minutes: 150           # about half a field day

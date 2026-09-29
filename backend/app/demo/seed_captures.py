@@ -1,6 +1,7 @@
 """Seed synthetic PAST lane captures around a property, so reuse can be demonstrated before any real
-survey exists. Every row is `source = 'demo_seed'` (provenance: mock) — the UI and the roll-up
-label it as such. Deterministic (fixed RNG seed) and idempotent (client ids derive from the segment).
+survey exists. Captures come in contiguous past-unit clusters (one field day each), like real
+surveys — not scattered lanes, which would make the remaining gaps unrealistically fragmented.
+Every row is `source = 'demo_seed'` (provenance: mock) — the UI and the roll-up label it as such. Deterministic (fixed RNG seed) and idempotent (client ids derive from the segment).
 
   python -m app.demo.seed_captures --property 197 --coverage 0.85 --stale 0.08 --gap 0.01
   python -m app.demo.seed_captures --purge
@@ -9,6 +10,7 @@ import argparse
 import json
 import random
 import uuid
+from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import text
@@ -42,7 +44,50 @@ def observations(rng: random.Random, highway: str) -> dict:
     return LaneObservations.model_validate(obs).model_dump()   # same schema real captures use
 
 
-def seed(property_id: int, coverage: float, stale: float, gap: float, rng_seed: int) -> None:
+def past_units(segs: list[dict], rng: random.Random, target_m: float) -> list[list[dict]]:
+    """Cut the catchment into contiguous clusters (~one past survey unit each) by growing over the
+    road graph from random starts. Real past surveys cover walks, not scattered lanes — so stale
+    and never-surveyed areas come in blocks too."""
+    by_node = defaultdict(list)
+    for s in segs:
+        by_node[s["from_node"]].append(s)
+        by_node[s["to_node"]].append(s)
+    left = {s["segment_id"]: s for s in segs}
+    clusters = []
+    while left:
+        start = left.pop(rng.choice(sorted(left)))
+        cluster, queue, length = [start], deque([start]), start["length_m"]
+        while queue and length < target_m:
+            cur = queue.popleft()
+            for n in (cur["from_node"], cur["to_node"]):
+                for nb in by_node[n]:
+                    if nb["segment_id"] in left and length < target_m:
+                        del left[nb["segment_id"]]
+                        cluster.append(nb)
+                        queue.append(nb)
+                        length += nb["length_m"]
+        clusters.append(cluster)
+    # Growth leaves remnants (1–2 lanes boxed in by other clusters); a real past plan would have put
+    # them in a neighbouring unit, so fold each small cluster into the cluster it touches.
+    owner = {}
+    for i, c in enumerate(clusters):
+        for s in c:
+            owner[s["segment_id"]] = i
+    for i, c in enumerate(clusters):
+        if not c or sum(s["length_m"] for s in c) >= 0.3 * target_m:
+            continue
+        near = {owner[nb["segment_id"]] for s in c for n in (s["from_node"], s["to_node"])
+                for nb in by_node[n] if owner[nb["segment_id"]] != i and clusters[owner[nb["segment_id"]]]}
+        if near:
+            j = min(near, key=lambda j: sum(s["length_m"] for s in clusters[j]))
+            for s in c:
+                owner[s["segment_id"]] = j
+            clusters[j] += c
+            clusters[i] = []
+    return [c for c in clusters if c]
+
+
+def seed(property_id: int, coverage: float, stale: float, gap: float, rng_seed: int, unit_m: float = 2500) -> None:
     fd = load_config()["studies"]["freshness_days"]
     rng = random.Random(rng_seed)
     now = datetime.now(timezone.utc)
@@ -51,27 +96,31 @@ def seed(property_id: int, coverage: float, stale: float, gap: float, rng_seed: 
         if p is None:
             raise SystemExit(f"property {property_id} not found")
         snap = active_snapshot(db)
-        segs = catchment_segments(db, snap.id, p.lat, p.lon, load_config()["studies"]["catchment_radius_m"])
-        meta = {r.segment_id: r for r in db.execute(text(
-            "SELECT segment_id, highway FROM road_segments WHERE snapshot_id = :s AND segment_id = ANY(:ids)"),
-            dict(s=snap.id, ids=[s["segment_id"] for s in segs]))}
+        ids = [s["segment_id"] for s in catchment_segments(db, snap.id, p.lat, p.lon,
+                                                            load_config()["studies"]["catchment_radius_m"])]
+        segs = [dict(r) for r in db.execute(text(
+            "SELECT segment_id, highway, from_node, to_node, length_m FROM road_segments "
+            "WHERE snapshot_id = :s AND segment_id = ANY(:ids)"), dict(s=snap.id, ids=ids)).mappings()]
         surveyor = db.scalar(text("SELECT id FROM users WHERE role = 'survey_executive' ORDER BY id LIMIT 1"))
-        rng.shuffle(segs)
+        clusters = past_units(segs, rng, unit_m)
+        rng.shuffle(clusters)
         total = sum(s["length_m"] for s in segs)
         acc, rows = 0.0, []
-        for s in segs:
+        for cluster in clusters:
             share = acc / total
-            kind = ("fresh" if share < coverage else "stale" if share < coverage + stale
-                    else "gap" if share < coverage + stale + gap else None)
-            acc += s["length_m"]
+            acc += sum(s["length_m"] for s in cluster)
+            kind = "fresh" if share < coverage else "stale" if share < coverage + stale else None
             if kind is None:
-                continue
-            days = rng.uniform(8, fd - 10) if kind != "stale" else rng.uniform(fd + 10, fd + 120)
-            at = (now - timedelta(days=days)).replace(hour=rng.choice([1, 2, 3, 4, 5, 10, 11, 12, 13]))  # 06:30–18:30 IST
-            rows.append(dict(client_id=str(uuid.uuid5(NS, f"{s['segment_id']}")), snap=snap.id, seg=s["segment_id"],
-                             by=surveyor, status="could_not_survey" if kind == "gap" else "surveyed",
-                             reason="gated lane, no access" if kind == "gap" else None, at=at, band=time_band(at),
-                             obs=json.dumps(observations(rng, meta[s["segment_id"]].highway)) if kind != "gap" else "{}"))
+                continue                                     # never surveyed
+            days = rng.uniform(8, fd - 10) if kind == "fresh" else rng.uniform(fd + 10, fd + 120)
+            day = now - timedelta(days=days)                 # one past unit = one field day
+            for s in cluster:
+                at = day.replace(hour=rng.choice([1, 2, 3, 4, 5, 10, 11, 12, 13]), minute=rng.randrange(60))  # 06:30–19:30 IST
+                blocked = kind == "fresh" and rng.random() < gap       # a gated lane inside a surveyed walk
+                rows.append(dict(client_id=str(uuid.uuid5(NS, f"{s['segment_id']}")), snap=snap.id, seg=s["segment_id"],
+                                 by=surveyor, status="could_not_survey" if blocked else "surveyed",
+                                 reason="gated lane, no access" if blocked else None, at=at, band=time_band(at),
+                                 obs="{}" if blocked else json.dumps(observations(rng, s["highway"]))))
         n = 0
         for r in rows:
             n += db.execute(text("""
@@ -82,8 +131,9 @@ def seed(property_id: int, coverage: float, stale: float, gap: float, rng_seed: 
                 FROM road_segments r WHERE r.snapshot_id = :snap AND r.segment_id = :seg
                 ON CONFLICT (client_id) DO NOTHING"""), r).rowcount
         db.commit()
-        print(f"property {p.id} '{p.label}': {len(segs)} catchment segments, {len(rows)} seeded, {n} new "
-              f"(target fresh {coverage:.0%}, stale {stale:.0%}, could-not-survey {gap:.0%} of length)")
+        print(f"property {p.id} '{p.label}': {len(segs)} catchment segments in {len(clusters)} past-unit clusters, "
+              f"{len(rows)} seeded, {n} new (target fresh {coverage:.0%}, stale {stale:.0%} of length; "
+              f"{gap:.0%} of fresh lanes could not be surveyed)")
 
 
 def purge() -> None:

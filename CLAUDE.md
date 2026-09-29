@@ -221,5 +221,8 @@ frontend to hide a field.
   (`MyUnitsPage` = survey executive home, `UnitPage` = numbered lane map in walking order).
   `MapView` supports `clickable` overlay layers and attaches layers on `style.load`. API: unit
   progress, `GET /units/{id}`, lanes in walking order (`partition.walk`).
+- Fragmentation fix: demo seed = contiguous past-unit clusters; partitioner = stretch-first
+  peeling (`studies.units.method: peel`, config 0.12.0), pinned by `tests/test_partition.py`.
+  Demo studies now #479 (property 197) and #480 (property 52), U1 of each assigned to Arjun.
 - Next step: **Phase 10** — lane capture (mobile form, drafts, idempotent submit, could-not-survey),
   roll-up → Catchment Summary, v2 evaluation + v1→v2 diff. **The phase that must not slip.**
