@@ -55,7 +55,7 @@ def _check_parents_exist(db: Session, s: int, cells: list[str]) -> None:
                              f"{', '.join(unknown[:5])}{'…' if len(unknown) > 5 else ''}")
 
 
-def _nearby_name(db: Session, s: int, cells: list[str]) -> str:
+def nearby_name(db: Session, s: int, cells: list[str]) -> str:
     """' near <locality> (<zone> zone)' for hand-picked cells, so a report list says where they are."""
     if not cells:
         return ""
@@ -131,7 +131,7 @@ def resolve(db: Session, sel: Selection) -> dict:
         _check_parents_exist(db, s, sel.cells)
         basis = {"basis": "cells", "source": "h3", "approximate": False, "label": "cells picked on the map"}
         cells = _children(db, s, sel.cells)
-        label = f"{len(set(sel.cells))} cells{_nearby_name(db, s, cells)}"
+        label = f"{len(set(sel.cells))} cells{nearby_name(db, s, cells)}"
 
     # Manual edits happen on selection cells (what the user sees and clicks).
     if sel.add_cells:

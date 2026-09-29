@@ -13,6 +13,7 @@ ACCESS = [
     ("GET", "/config", set(Role)),
     ("GET", "/auth/me", set(Role)),
     ("GET", "/areas/grid", {Role.BD_MANAGER}),
+    ("GET", "/opportunities", {Role.BD_MANAGER}),
     ("GET", "/reference/service-area", set(Role)),
     ("GET", "/reference/stores", {Role.BD_MANAGER, Role.BD_EXECUTIVE}),
     ("GET", "/reference/locate?lat=13.0418&lon=80.2341", {Role.BD_MANAGER, Role.BD_EXECUTIVE}),

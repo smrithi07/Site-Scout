@@ -1,6 +1,6 @@
 # Savo SiteScout config. Every snapshot records `version`. Bump it on ANY change below.
 # Weights/thresholds/radii/freshness/caps are filled in as each phase needs them (see docs/DESIGN.md).
-version: "0.15.0"
+version: "0.16.0"
 
 region:
   name: Greater Chennai Corporation
@@ -162,6 +162,19 @@ scoring:
     high: 0.75
     medium: 0.5
   hotspots: {count: 5, min_separation_k: 1}
+
+opportunities:
+  # City-wide opportunity map (bonus, docs/DESIGN.md §11). Desk data only — nobody has visited.
+  # A selection cell (res 8) is rated by the mean score of its scoreable score cells; pockets grow
+  # from the best cells over adjacent cells above the threshold, and each pocket is scored with the
+  # same engine as an area report (so "start analysis" reproduces the pocket's score).
+  min_scoreable_children: 5      # a selection cell needs this many scoreable score cells…
+  min_scoreable_share: 0.5       # …and this share of its score cells scoreable, to be rated
+  seed_percentile: 80            # only cells above this citywide percentile seed or join a pocket
+  max_cells: 3                   # selection cells per pocket (≈ 2 km²: one scouting trip)
+  count: 12                      # pockets listed
+  # "Un-scouted": a selection cell is skipped if it holds a property (any stage, not merged), is a
+  # target of a scout task that isn't cancelled, or holds an operational Savomart store.
 
 studies:
   # M3 catchment studies (docs/DESIGN.md §7). The survey atom is the road segment.
