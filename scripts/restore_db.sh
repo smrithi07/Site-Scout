@@ -7,7 +7,14 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 DUMP=data/processed/sitescout_deploy.dump
 [ -f "$DUMP" ] || { echo "no $DUMP — run make deploy-export first" >&2; exit 1; }
-[ -n "${DEPLOY_DATABASE_URL:-}" ] || { echo "set DEPLOY_DATABASE_URL (Render → database → External Database URL)" >&2; exit 1; }
+if [ -z "${DEPLOY_DATABASE_URL:-}" ] && [ -t 0 ]; then
+  echo "Render → sitescout-db → Connect → External → copy the External Database URL."
+  read -rsp "Paste it here (hidden) and press Enter: " DEPLOY_DATABASE_URL; echo
+fi
+[ -n "${DEPLOY_DATABASE_URL:-}" ] || { echo "no database URL given (Render → database → External Database URL)" >&2; exit 1; }
+case $DEPLOY_DATABASE_URL in *…*|*"<"*|*">"*)
+  echo "that's the placeholder from the instructions, not your database's URL — copy the real one from Render" >&2; exit 1 ;;
+esac
 URL=$DEPLOY_DATABASE_URL
 case $URL in
   postgres://*|postgresql://*) ;;
