@@ -1,4 +1,4 @@
-.PHONY: setup fetch-data demo up down logs ps health test psql migrate ingest gate reload-env llm-smoke seed-captures
+.PHONY: setup fetch-data demo prod up down logs ps health test psql migrate ingest gate reload-env llm-smoke seed-captures
 
 # Fresh clone → running app with data, in one command (idempotent; see scripts/setup.sh).
 setup:
@@ -12,6 +12,10 @@ fetch-data:
 # Usage: make demo   |   make demo ARGS=--purge   |   make demo ARGS=--llm
 demo:
 	docker compose exec api python -m app.demo.story $(ARGS)
+
+# Production-style run: static frontend behind nginx, no reloaders (back to dev: `make up`).
+prod:
+	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 # -V renews anonymous volumes: web's node_modules would otherwise survive a dependency change.
 # The database uses a named volume (pgdata), which is kept.

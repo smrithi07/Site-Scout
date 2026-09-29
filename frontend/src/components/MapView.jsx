@@ -1,7 +1,12 @@
 // MapLibre map of the service area. Base map: OpenFreeMap (free, no key) — the only thing the
 // browser fetches from outside; everything analytical comes from our API.
-import { Map as MapLibreMap, NavigationControl } from 'maplibre-gl'
+import { Map as MapLibreMap, NavigationControl, setWorkerUrl } from 'maplibre-gl'
 import { useEffect, useRef, useState } from 'react'
+// MapLibre builds its worker URL from a variable, which Vite can't see, so a production bundle would
+// ship without the worker (blank map). Let Vite bundle the worker (with its shared chunk) instead.
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
+
+setWorkerUrl(workerUrl)
 
 const STYLE = 'https://tiles.openfreemap.org/styles/positron'
 const BRAND = '#782b90'

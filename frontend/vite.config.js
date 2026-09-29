@@ -7,6 +7,7 @@ export default defineConfig({
   // maplibre-gl 6 loads its web worker via new URL(<name>, import.meta.url); pre-bundling moves the
   // module into .vite/deps, away from the worker file, and the map stays blank. Serve it as-is.
   optimizeDeps: { exclude: ['maplibre-gl'] },
+  worker: { format: 'es' },   // MapLibre starts its worker as a module worker (setWorkerUrl in MapView)
   server: {
     host: true,
     port: 5173,

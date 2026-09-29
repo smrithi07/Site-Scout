@@ -1,0 +1,22 @@
+# Production-style run on top of docker-compose.yml (`make prod`): no code reloaders, no source
+# bind mounts for the web app, and a static frontend build behind nginx on the same port (5173).
+services:
+  api:
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    restart: unless-stopped
+
+  worker:
+    command: python -m app.jobs.worker
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+      target: prod
+      args:
+        VITE_API_URL: http://localhost:8000
+    ports: !override
+      - "5173:80"
+    volumes: !reset []
+    environment: !reset {}
+    restart: unless-stopped

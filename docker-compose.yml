@@ -46,7 +46,9 @@ services:
     restart: unless-stopped
 
   web:
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: dev              # docker-compose.prod.yml builds the `prod` (nginx) target instead
     environment:
       VITE_API_URL: http://localhost:8000
     ports:
