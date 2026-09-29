@@ -13,7 +13,7 @@ const NAV = {
     { to: '/properties', label: 'My properties' },
   ],
   survey_manager: [{ to: '/', label: 'Studies' }],
-  survey_executive: [],
+  survey_executive: [{ to: '/', label: 'My units' }],
 }
 
 export default function Layout() {

@@ -610,6 +610,30 @@ Phase 6 split: **6a** = tasks, save-first properties, validation, duplicates, ph
 - **Test isolation**: study tests moved to a site no demo property uses (Perambur), with a guard
   that fails loudly if non-test captures appear there (the demo seed around #52 had broken them).
 
+## Phase 9b decisions (unit planner, progress, survey executive's units)
+
+- **One map, two views** on the study page: *Reuse* (lanes by reuse state) and *Units* (lanes by
+  unit, reused lanes thin grey). In the unit view the Survey Manager taps lanes to select them
+  (yellow), then moves them to a unit or splits them into a new one; tapping a unit row highlights
+  it and offers merge. Every edit goes to the API, which re-validates one-lane-one-unit; a 409
+  reloads the plan and keeps the selection.
+- **Clickable overlays** in `MapView`: layers marked `clickable` get click + pointer handlers. Thin
+  lanes are hard to tap, so each clickable lane layer has a wide invisible hit layer (opacity
+  0.01, not 0, so it is certainly queryable).
+- **Map layers attach on `style.load`, not `load`**: `load` also waits for the first base-map
+  tiles — OpenFreeMap cold loads kept lanes/grid invisible for 10–15 s. Warm: style.load 11–16 ms
+  vs load ~115 ms. The analysis map was re-checked after the change.
+- **Progress** counts each lane once by its latest capture in this study (surveyed / could not
+  survey); per unit and rolled up on the study (`handled / lanes`, %). Shown to the Survey
+  Manager per unit, to BD in the study card, to the executive per unit.
+- **Walking order**: a unit's lanes are listed and numbered on the map in the nearest-neighbour
+  route that its time estimate assumes (starting from the lane farthest from the unit's centre),
+  so the estimate and the field route agree. `partition.walk()` is shared by both.
+- **Survey executive**: home = "My units today" (units on in-progress studies, to do first); a unit
+  page with the numbered lane map, the lane list, directions, and the property only as a label.
+  Capture itself is Phase 10.
+- Survey roles no longer request `/reference/stores` (BD-only on the API) — no 403 noise.
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

@@ -121,8 +121,8 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–9a are done (M1
-  and M2 complete, M3 backend + request/plan UI); **Phase 9b** (unit map + progress UI) is next.
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–9b are done (M1
+  and M2 complete, M3 through planning, units and assignment); **Phase 10** (capture + roll-up) is next.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -216,5 +216,10 @@ frontend to hide a field.
   catchment overlays), `RequestStudyDialog` + `StudyCard` (BD review page), `InboxPage` (Survey
   Manager home), `StudyPage` (`/studies/:id`: coverage, catchment map, final-say plan, units table).
   `<main>` is the scroll container. Study tests run at a dedicated site (Perambur).
-- Next step: **Phase 9b** — unit map editing (move / split / merge), assignment, progress board,
-  survey executive's units list.
+- Phase 9b done: `features/studies/UnitPanel.jsx` (units table, assign, move / split / merge of
+  lanes selected on the map, progress), StudyPage Units/Reuse views, `features/units/`
+  (`MyUnitsPage` = survey executive home, `UnitPage` = numbered lane map in walking order).
+  `MapView` supports `clickable` overlay layers and attaches layers on `style.load`. API: unit
+  progress, `GET /units/{id}`, lanes in walking order (`partition.walk`).
+- Next step: **Phase 10** — lane capture (mobile form, drafts, idempotent submit, could-not-survey),
+  roll-up → Catchment Summary, v2 evaluation + v1→v2 diff. **The phase that must not slip.**

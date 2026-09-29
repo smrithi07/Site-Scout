@@ -22,10 +22,13 @@ function toggle(set, id) {
 }
 
 export function useMapLayers({ withGrid = true } = {}) {
-  // The selection grid is BD-Manager-only; other screens ask for outline + stores alone.
+  // The selection grid is BD-Manager-only; other screens ask for outline + stores alone. Stores are
+  // BD-only on the API, so survey roles don't ask (they'd only get a 403).
+  const { user } = useAuth()
+  const bd = ['bd_manager', 'bd_executive'].includes(user?.role)
   const grid = useQuery({ queryKey: ['grid'], queryFn: () => api('/areas/grid'), staleTime: Infinity, enabled: withGrid })
   const serviceArea = useQuery({ queryKey: ['service-area'], queryFn: () => api('/reference/service-area'), staleTime: Infinity })
-  const stores = useQuery({ queryKey: ['stores'], queryFn: () => api('/reference/stores'), staleTime: Infinity })
+  const stores = useQuery({ queryKey: ['stores'], queryFn: () => api('/reference/stores'), staleTime: Infinity, enabled: bd })
   return { grid: grid.data, serviceArea: serviceArea.data, stores: stores.data, error: grid.error ?? serviceArea.error }
 }
 

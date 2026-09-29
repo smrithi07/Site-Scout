@@ -249,12 +249,30 @@ def units_of(db: Session, study_id: int) -> list[SurveyUnit]:
     return list(db.scalars(select(SurveyUnit).where(SurveyUnit.study_id == study_id).order_by(SurveyUnit.id)))
 
 
+def progress(db: Session, study_id: int) -> dict[int, dict]:
+    """Per unit: lanes captured in THIS study (surveyed / could not survey). A lane counts once,
+    by its latest capture."""
+    rows = db.execute(text("""
+        SELECT ss.unit_id, count(*) FILTER (WHERE c.status = 'surveyed') AS surveyed,
+               count(*) FILTER (WHERE c.status = 'could_not_survey') AS gaps
+        FROM study_segments ss
+        JOIN LATERAL (SELECT status FROM segment_captures c WHERE c.study_id = ss.study_id
+                      AND c.segment_id = ss.segment_id ORDER BY c.captured_at DESC LIMIT 1) c ON true
+        WHERE ss.study_id = :s AND ss.unit_id IS NOT NULL GROUP BY ss.unit_id"""), dict(s=study_id)).mappings()
+    return {r["unit_id"]: {"surveyed": r["surveyed"], "gaps": r["gaps"]} for r in rows}
+
+
 def summary(db: Session, study_id: int) -> dict:
     units = units_of(db, study_id)
     mins = [u.minutes for u in units]
+    prog = progress(db, study_id)
+    handled = sum(p["surveyed"] + p["gaps"] for p in prog.values())
+    lanes = sum(u.segment_count for u in units)
     return {"count": len(units), "assigned": sum(u.assignee_id is not None for u in units),
             "minutes_min": min(mins, default=None), "minutes_max": max(mins, default=None),
-            "total_minutes": round(sum(mins), 1)}
+            "total_minutes": round(sum(mins), 1), "lanes": lanes, "handled": handled,
+            "surveyed": sum(p["surveyed"] for p in prog.values()), "gaps": sum(p["gaps"] for p in prog.values()),
+            "progress_pct": round(100 * handled / lanes, 1) if lanes else None}
 
 
 def mine(db: Session, user: User) -> list[SurveyUnit]:
@@ -273,12 +291,17 @@ def visible_unit(db: Session, user: User, unit_id: int) -> SurveyUnit:
 
 
 def unit_geojson(db: Session, u: SurveyUnit) -> dict:
+    """The unit's lanes in walking order (the same route its time estimate assumes)."""
     study = db.get(Study, u.study_id)
+    segs = graph(db, study)
+    order, _ = partition.walk(segs, [s for s in segs if s["unit_id"] == u.id])
+    rank = {s["segment_id"]: i for i, s in enumerate(order)}
     rows = db.execute(text("""
         SELECT ss.segment_id, r.name, r.highway, r.length_m, ST_AsGeoJSON(r.geom, 6)::json AS geometry,
                EXISTS (SELECT 1 FROM segment_captures c WHERE c.study_id = :st AND c.segment_id = ss.segment_id) AS captured
         FROM study_segments ss JOIN road_segments r ON r.snapshot_id = :s AND r.segment_id = ss.segment_id
-        WHERE ss.unit_id = :u ORDER BY ss.segment_id"""), dict(s=study.snapshot_id, st=study.id, u=u.id)).mappings()
-    return {"type": "FeatureCollection", "features": [
+        WHERE ss.unit_id = :u"""), dict(s=study.snapshot_id, st=study.id, u=u.id)).mappings()
+    return {"type": "FeatureCollection", "features": sorted((
         {"type": "Feature", "geometry": r["geometry"],
-         "properties": {k: r[k] for k in ("segment_id", "name", "highway", "length_m", "captured")}} for r in rows]}
+         "properties": {**{k: r[k] for k in ("segment_id", "name", "highway", "length_m", "captured")},
+                        "order": rank[r["segment_id"]] + 1}} for r in rows), key=lambda f: f["properties"]["order"])}

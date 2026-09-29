@@ -91,8 +91,11 @@ def _plan(db: Session, study_id: int, user: User) -> dict:
     db.commit()
     study = db.get(Study, study_id)
     names = dict(db.execute(select(User.id, User.name)).all())
+    prog = units.progress(db, study_id)
     return {"study": _out(db, study, user),
-            "units": [unit_response(u, {"assignee_name": names.get(u.assignee_id)}) for u in units.units_of(db, study_id)]}
+            "units": [unit_response(u, {"assignee_name": names.get(u.assignee_id),
+                                        **prog.get(u.id, {"surveyed": 0, "gaps": 0})})
+                      for u in units.units_of(db, study_id)]}
 
 
 @router.get("/{study_id}/units")
@@ -136,11 +139,21 @@ def assign_unit(study_id: int, unit_id: int, body: UnitAssign, user: User = Depe
 @unit_router.get("/my/units")
 def my_units(user: User = Depends(require_roles(Role.SURVEY_EXECUTIVE)), db: Session = Depends(get_db)) -> list[dict]:
     """The survey executive's units today. The property is just a label (PropertyLabel view)."""
-    out = []
-    for u in units.mine(db, user):
-        study = db.get(Study, u.study_id)
-        out.append(unit_response(u, {"property": property_response(db.get(Property, study.property_id), user.role)}))
-    return out
+    return [_unit_out(db, u, user) for u in units.mine(db, user)]
+
+
+def _unit_out(db: Session, u, user: User) -> dict:
+    study = db.get(Study, u.study_id)
+    prog = units.progress(db, study.id).get(u.id, {"surveyed": 0, "gaps": 0})
+    return unit_response(u, {**prog, "study_status": study.status, "lat": study.lat, "lon": study.lon,
+                             "property": property_response(db.get(Property, study.property_id), user.role)})
+
+
+@unit_router.get("/units/{unit_id}")
+def get_unit(unit_id: int, user: User = Depends(require_roles(Role.SURVEY_MANAGER, Role.SURVEY_EXECUTIVE)),
+             db: Session = Depends(get_db)) -> dict:
+    """One unit: progress, the study's centre (for directions), the property as the role may see it."""
+    return _unit_out(db, units.visible_unit(db, user, unit_id), user)
 
 
 @unit_router.get("/units/{unit_id}/segments")

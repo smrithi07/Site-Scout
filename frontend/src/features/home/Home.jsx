@@ -3,8 +3,9 @@ import RoleSwitcher from '../../app/RoleSwitcher'
 import { ROLE_LABELS, useAuth } from '../../app/auth'
 import ExecHome from '../scouting/ExecHome'
 import InboxPage from '../studies/InboxPage'
+import MyUnitsPage from '../units/MyUnitsPage'
 
-// What each persona will land on (docs/DESIGN.md §4). BD roles are built; survey roles arrive with M3.
+// What each persona will land on (docs/DESIGN.md §4). Every role has its own home.
 const HOMES = {
   bd_manager: {
     title: 'Where should we open next?',
@@ -12,7 +13,6 @@ const HOMES = {
     cta: { to: '/areas/analyse', label: 'Analyse an area' },
     secondary: { to: '/pipeline', label: 'Review the pipeline' },
   },
-  survey_executive: { title: 'My units today', body: 'Lane capture arrives with M3.' },
 }
 
 export default function Home() {
@@ -28,6 +28,7 @@ export default function Home() {
   }
   if (user.role === 'bd_executive') return <ExecHome />
   if (user.role === 'survey_manager') return <InboxPage />
+  if (user.role === 'survey_executive') return <MyUnitsPage />
   const home = HOMES[user.role]
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">

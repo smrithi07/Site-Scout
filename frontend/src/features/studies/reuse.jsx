@@ -101,3 +101,42 @@ export function catchmentOverlays(study, segments) {
     },
   ]
 }
+
+// Unit colours (tab10): distinct from each other; reused lanes stay thin grey in the unit view.
+export const UNIT_COLORS = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#17becf', '#bcbd22', '#7f7f7f']
+export const unitColor = (units, id) => UNIT_COLORS[Math.max(0, units.findIndex((u) => u.id === id)) % UNIT_COLORS.length]
+
+/** Unit view: lanes coloured by unit, the focused unit emphasised, selected lanes outlined yellow.
+ *  The wide invisible `segments-hit` layer is the click target (thin lines are hard to tap). */
+export function unitOverlays(study, segments, units, { selected = new Set(), focus = null } = {}) {
+  const colorBy = units.length
+    ? ['match', ['coalesce', ['get', 'unit_id'], -1], ...units.flatMap((u) => [u.id, unitColor(units, u.id)]), '#9ca3af']
+    : '#9ca3af'
+  return [
+    {
+      id: 'catchment',
+      data: circle(study.lat, study.lon, study.radius_m),
+      layers: [{ id: 'catchment-line', type: 'line', paint: { 'line-color': '#1c1022', 'line-width': 1.5, 'line-dasharray': [2, 2] } }],
+    },
+    {
+      id: 'segments',
+      data: segments,
+      layers: [
+        { id: 'segments-selected', type: 'line', layout: { 'line-cap': 'round' }, filter: ['in', ['get', 'segment_id'], ['literal', [...selected]]],
+          paint: { 'line-color': '#fff200', 'line-width': 11 } },
+        { id: 'segments-line', type: 'line', layout: { 'line-cap': 'round' },
+          paint: {
+            'line-color': colorBy,
+            'line-width': ['case', ['!', ['get', 'to_survey']], 1.5, focus != null && ['==', ['get', 'unit_id'], focus], 6, 4],
+            'line-opacity': ['case', ['!', ['get', 'to_survey']], 0.5, focus == null ? true : ['==', ['get', 'unit_id'], focus], 1, 0.35],
+          } },
+        { id: 'segments-hit', type: 'line', clickable: true, filter: ['get', 'to_survey'], paint: { 'line-color': '#000', 'line-width': 16, 'line-opacity': 0.01 } },
+      ],
+    },
+    {
+      id: 'study-pin',
+      data: { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [study.lon, study.lat] } },
+      layers: [{ id: 'study-pin-dot', type: 'circle', paint: { 'circle-radius': 7, 'circle-color': '#fff200', 'circle-stroke-color': '#1c1022', 'circle-stroke-width': 2 } }],
+    },
+  ]
+}

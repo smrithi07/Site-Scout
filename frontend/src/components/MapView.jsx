@@ -23,22 +23,27 @@ export function boundsOf(geojson) {
  * grid: FeatureCollection of selection cells (properties.h3, scoreable_share)
  * selected: Set of h3 ids to highlight; onCellClick(h3) makes the grid clickable
  * fit: bounds to fly to when it changes; overlays: [{id, data, layers}] extra sources (5b)
+ * onOverlayClick(feature, layerId): called for overlay layers marked `clickable: true`
  */
-export default function MapView({ grid, serviceArea, stores, selected, onCellClick, onMapClick, fit, overlays = [] }) {
+export default function MapView({ grid, serviceArea, stores, selected, onCellClick, onMapClick, onOverlayClick, fit, overlays = [] }) {
   const container = useRef(null)
   const map = useRef(null)
   const shown = useRef(new Set())
   const clickRef = useRef(onCellClick)
   const mapClickRef = useRef(onMapClick)
+  const overlayClickRef = useRef(onOverlayClick)
   const [ready, setReady] = useState(false)
   clickRef.current = onCellClick
   mapClickRef.current = onMapClick
+  overlayClickRef.current = onOverlayClick
 
   useEffect(() => {
     const m = new MapLibreMap({ container: container.current, style: STYLE, center: CHENNAI, zoom: 10.5,
                                    attributionControl: { compact: true } })
     m.addControl(new NavigationControl({ showCompass: false }), 'top-right')
-    m.on('load', () => {
+    // 'style.load', not 'load': our layers need only the style, and 'load' also waits for the first
+    // base-map tiles (OpenFreeMap cold loads took 10–15 s with the lanes/grid invisible meanwhile).
+    m.once('style.load', () => {
       m.addSource('grid', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, promoteId: 'h3' })
       m.addLayer({ id: 'grid-fill', type: 'fill', source: 'grid', paint: {
         'fill-color': ['case', ['boolean', ['feature-state', 'selected'], false], BRAND,
@@ -109,14 +114,26 @@ export default function MapView({ grid, serviceArea, stores, selected, onCellCli
   useEffect(() => {
     if (!ready) return
     const m = map.current
+    const handlers = []
     for (const o of overlays) {
       if (m.getSource(o.id)) m.getSource(o.id).setData(o.data)
       else {
         m.addSource(o.id, { type: 'geojson', data: o.data })
-        o.layers.forEach((layer) => m.addLayer({ ...layer, source: o.id }, layer.beforeId))
+        o.layers.forEach(({ beforeId, clickable, ...layer }) => {
+          m.addLayer({ ...layer, source: o.id }, beforeId)
+          if (!clickable) return
+          const click = (e) => overlayClickRef.current?.(e.features[0], layer.id)
+          const enter = () => { m.getCanvas().style.cursor = 'pointer' }
+          const leave = () => { m.getCanvas().style.cursor = '' }
+          m.on('click', layer.id, click); m.on('mouseenter', layer.id, enter); m.on('mouseleave', layer.id, leave)
+          handlers.push([layer.id, click, enter, leave])
+        })
       }
     }
     return () => {
+      for (const [id, click, enter, leave] of handlers) {
+        m.off('click', id, click); m.off('mouseenter', id, enter); m.off('mouseleave', id, leave)
+      }
       for (const o of overlays) {
         o.layers.forEach((layer) => m.getLayer(layer.id) && m.removeLayer(layer.id))
         if (m.getSource(o.id)) m.removeSource(o.id)

@@ -97,19 +97,32 @@ def partition(segs: list[dict], survey_ids: set[str], cfg: dict) -> list[dict]:
             for u in units]
 
 
-def estimate(segs: list[dict], members: list[dict], cfg: dict, adj: dict | None = None) -> dict:
-    """Workload of one unit: survey time + a nearest-neighbour walk between its segments. Used for
-    generated units and again after every manual edit, so the numbers are always comparable."""
-    adj = adj or _graph(segs)
+def walk(segs: list[dict], members: list[dict], adj: dict | None = None) -> tuple[list[dict], float]:
+    """A nearest-neighbour route through a unit's lanes: (lanes in walking order, metres walked
+    between them). Starts at the lane farthest from the unit's centre, so the walk sweeps across."""
     if not members:
-        return {"minutes": 0.0, "walk_minutes": 0.0, "length_m": 0.0, "pieces": 0}
-    left, cur, walk = list(members[1:]), members[0], 0.0
+        return [], 0.0
+    adj = adj or _graph(segs)
+    cx = sum(m["x"] for m in members) / len(members)
+    cy = sum(m["y"] for m in members) / len(members)
+    cur = max(members, key=lambda m: math.hypot(m["x"] - cx, m["y"] - cy))
+    order, left, walked = [cur], [m for m in members if m is not cur], 0.0
     while left:
         dist = _dijkstra(adj, {cur["from_node"], cur["to_node"]})
         d, cur = min(((_seg_dist(dist, s, [cur]), s) for s in left), key=lambda t: t[0])
-        walk += d
+        walked += d
+        order.append(cur)
         left.remove(cur)
-    w = walk / cfg["walk_speed_m_per_min"]
+    return order, walked
+
+
+def estimate(segs: list[dict], members: list[dict], cfg: dict, adj: dict | None = None) -> dict:
+    """Workload of one unit: survey time + walking between its lanes along `walk()`. Used for
+    generated units and again after every manual edit, so the numbers are always comparable."""
+    if not members:
+        return {"minutes": 0.0, "walk_minutes": 0.0, "length_m": 0.0, "pieces": 0}
+    _, walked = walk(segs, members, adj)
+    w = walked / cfg["walk_speed_m_per_min"]
     return {"minutes": round(sum(cost(m, cfg) for m in members) + w, 1), "walk_minutes": round(w, 1),
             "length_m": round(sum(m["length_m"] for m in members), 1), "pieces": pieces(members)}
 

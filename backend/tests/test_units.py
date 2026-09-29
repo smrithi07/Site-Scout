@@ -52,6 +52,7 @@ def test_plan_generates_balanced_units_covering_each_segment_once(client, planne
     cfg = load_config()["studies"]["units"]
     study, units = planned["study"], planned["units"]
     assert len(units) >= 2 and study["units"]["count"] == len(units)
+    assert (study["units"]["handled"], study["units"]["lanes"], study["units"]["progress_pct"]) == (0, study["survey"]["segments"], 0)
     assert sum(u["segment_count"] for u in units) == study["survey"]["segments"]
     assert_invariant(client, study["id"])
     for u in units:
@@ -134,8 +135,12 @@ def test_assignment_starts_the_study_and_the_executive_sees_only_their_units(cli
     mine = client.get("/my/units", headers=SE).json()
     assert [m["id"] for m in mine if m["study_id"] == sid] == [u["id"]]
     assert set(mine[0]["property"]) == {"id", "label"}                               # a label, nothing else
-    assert client.get(f"/units/{u['id']}/segments", headers=SE).json()["features"]
+    lanes = client.get(f"/units/{u['id']}/segments", headers=SE).json()["features"]
+    assert [f["properties"]["order"] for f in lanes] == list(range(1, u["segment_count"] + 1))   # walking order
+    one = client.get(f"/units/{u['id']}", headers=SE).json()
+    assert (one["surveyed"], one["gaps"], one["study_status"]) == (0, 0, "in_progress") and set(one["property"]) == {"id", "label"}
     other = planned["units"][1]["id"]
+    assert client.get(f"/units/{other}", headers=SE).status_code == 403
     assert client.get(f"/units/{other}/segments", headers=SE).status_code == 403    # not theirs
     assert client.get(f"/studies/{sid}", headers=SE).status_code == 403
     assert client.get("/my/units", headers=SM).status_code == 403
@@ -154,3 +159,23 @@ def test_regenerate_before_assignment_needs_a_reason(client, planned):
     assert post(client, planned, "/generate", {"reason": ""}).status_code == 422
     r = post(client, planned, "/generate", {"reason": "try again after the reuse check"})
     assert r.status_code == 200 and len(r.json()["units"]) == len(planned["units"])
+
+
+def test_progress_counts_each_lane_once_by_its_latest_capture(client, planned):
+    sid, u = planned["study"]["id"], planned["units"][0]
+    post(client, planned, f"/{u['id']}/assign", {"assignee_id": SURVEY_EXEC_ID})
+    lanes = [k for k, v in seg_units(client, sid).items() if v["unit_id"] == u["id"]][:2]
+    with engine.begin() as conn:
+        for lane, status, days in ((lanes[0], "could_not_survey", 2), (lanes[0], "surveyed", 1), (lanes[1], "could_not_survey", 1)):
+            conn.execute(text("""
+                INSERT INTO segment_captures (client_id, study_id, unit_id, snapshot_id, segment_id, geom, status, reason,
+                                              captured_at, notes)
+                SELECT gen_random_uuid(), :s, :u, st.snapshot_id, r.segment_id, r.geom, CAST(:st AS text),
+                       CASE WHEN CAST(:st AS text) = 'could_not_survey' THEN 'gate locked' END,
+                       now() - (:d * interval '1 day'), 'TEST capture'
+                FROM studies st JOIN road_segments r ON r.snapshot_id = st.snapshot_id AND r.segment_id = :g
+                WHERE st.id = :s"""), dict(s=sid, u=u["id"], st=status, d=days, g=lane))
+    one = client.get(f"/units/{u['id']}", headers=SE).json()
+    assert (one["surveyed"], one["gaps"]) == (1, 1)                  # lane 0 re-captured: counts once, as surveyed
+    summary = client.get(f"/studies/{sid}", headers=BDM).json()["units"]
+    assert summary["handled"] == 2 and summary["progress_pct"] == round(200 / summary["lanes"], 1)

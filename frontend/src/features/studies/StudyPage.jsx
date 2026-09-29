@@ -1,6 +1,6 @@
 // Survey Manager: one catchment study. Where it is (property without commercial fields), what
-// existing data covers (map + coverage), and the final reuse decision — which generates the units.
-// Editing and assigning units is Phase 9b.
+// existing data covers (map + coverage), the final reuse decision (which generates the units), and
+// the unit planner: lanes selected on the map → move / split / merge, assignment, progress.
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
@@ -10,7 +10,8 @@ import { fmt } from '../../components/ScoreBreakdown'
 import { useMapLayers } from '../areas/AnalysePage'
 import { isStale } from '../pipeline/Dialogs'
 import { Card } from '../scouting/shared'
-import { CoverageBar, MODES, STATE, STATE_ORDER, StatusBadge, catchmentOverlays, circle, reasonNeeded } from './reuse'
+import { CoverageBar, MODES, STATE, STATE_ORDER, StatusBadge, catchmentOverlays, circle, reasonNeeded, unitColor, unitOverlays } from './reuse'
+import UnitPanel from './UnitPanel'
 
 function PlanPanel({ s, onPlanned, onStale }) {
   const [mode, setMode] = useState(s.planned_mode ?? s.requested_mode)
@@ -80,7 +81,21 @@ export default function StudyPage() {
   const segments = useQuery({ queryKey: ['study', id, 'segments', s?.version], queryFn: () => api(`/studies/${id}/segments`), enabled: !!s })
   const plan = useQuery({ queryKey: ['study', id, 'units', s?.version], queryFn: () => api(`/studies/${id}/units`),
                           enabled: !!s && s.units.count > 0 })
-  const overlays = useMemo(() => (s && segments.data ? catchmentOverlays(s, segments.data) : []), [s, segments.data])
+  const [view, setView] = useState(null)            // 'reuse' | 'units' (default: units once they exist)
+  const [selected, setSelected] = useState(new Set())
+  const [focus, setFocus] = useState(null)
+  const hasUnits = !!plan.data?.units.length
+  const mode = view ?? (hasUnits ? 'units' : 'reuse')
+  const overlays = useMemo(() => {
+    if (!s || !segments.data) return []
+    return mode === 'units' && plan.data ? unitOverlays(s, segments.data, plan.data.units, { selected, focus }) : catchmentOverlays(s, segments.data)
+  }, [s, segments.data, plan.data, mode, selected, focus])
+  const editable = s && ['planned', 'in_progress'].includes(s.status)
+  const toggleLane = (feature) => {
+    if (!editable || !feature) return
+    const id = feature.properties.segment_id
+    setSelected((cur) => { const next = new Set(cur); next.has(id) ? next.delete(id) : next.add(id); return next })
+  }
   const fit = useMemo(() => (s ? boundsOf(circle(s.lat, s.lon, s.radius_m * 1.05)) : null), [s?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (study.isError) return <p className="p-6 text-red-700">{study.error.message}</p>
@@ -118,33 +133,37 @@ export default function StudyPage() {
           </Card>
         </div>
         <div className="min-w-0 space-y-3">
-          <div className="h-[28rem] overflow-hidden rounded-lg"><MapView serviceArea={layers.serviceArea} stores={layers.stores} overlays={overlays} fit={fit} /></div>
-          <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
-            {STATE_ORDER.map((k) => <li key={k} className="flex items-center gap-1"><span className="inline-block h-1 w-4 rounded" style={{ background: STATE[k].color }} />{STATE[k].label}</li>)}
-            <li className="opacity-70">thick = to survey</li>
-          </ul>
+          {hasUnits && (
+            <div className="flex gap-1 text-sm" role="tablist">
+              {[['units', 'Units'], ['reuse', 'Reuse']].map(([k, l]) => (
+                <button key={k} role="tab" aria-selected={mode === k} onClick={() => setView(k)}
+                        className={`rounded-full px-3 py-1 ${mode === k ? 'bg-brand text-white' : 'bg-white ring-1 ring-brand/20'}`}>{l}</button>
+              ))}
+            </div>
+          )}
+          <div className="h-[28rem] overflow-hidden rounded-lg">
+            <MapView serviceArea={layers.serviceArea} stores={layers.stores} overlays={overlays} fit={fit}
+                     onOverlayClick={mode === 'units' ? toggleLane : undefined} />
+          </div>
+          {mode === 'reuse' ? (
+            <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              {STATE_ORDER.map((k) => <li key={k} className="flex items-center gap-1"><span className="inline-block h-1 w-4 rounded" style={{ background: STATE[k].color }} />{STATE[k].label}</li>)}
+              <li className="opacity-70">thick = to survey</li>
+            </ul>
+          ) : (
+            <ul className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              {plan.data.units.map((u) => <li key={u.id} className="flex items-center gap-1"><span className="inline-block h-1 w-4 rounded" style={{ background: unitColor(plan.data.units, u.id) }} />{u.label}</li>)}
+              <li className="opacity-70">thin grey = reused · yellow = selected</li>
+            </ul>
+          )}
           {plan.data && (
-            <Card title={`Survey units (${plan.data.units.length})`}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead><tr className="border-b text-left text-xs uppercase opacity-60">
-                    <th className="py-1 pr-2 font-medium">Unit</th><th className="pr-2 font-medium">Lanes</th><th className="pr-2 font-medium">km</th>
-                    <th className="pr-2 font-medium">Est. time</th><th className="pr-2 font-medium">Pieces</th><th className="font-medium">Assigned</th>
-                  </tr></thead>
-                  <tbody>
-                    {plan.data.units.map((u) => (
-                      <tr key={u.id} className="border-b last:border-0">
-                        <td className="py-1 pr-2 font-semibold">{u.label}</td><td className="pr-2 tabular-nums">{u.segment_count}</td>
-                        <td className="pr-2 tabular-nums">{fmt(u.length_m / 1000, 2)}</td>
-                        <td className="pr-2 tabular-nums">{fmt(u.minutes / 60, 1)} h <span className="text-xs opacity-60">({fmt(u.walk_minutes, 0)} min walking)</span></td>
-                        <td className="pr-2 tabular-nums">{u.pieces}</td><td>{u.assignee_name ?? <span className="opacity-50">—</span>}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="mt-1 text-xs opacity-60">Editing and assigning units on the map comes next (Phase 9b).</p>
-            </Card>
+            <UnitPanel plan={plan.data} segments={segments.data} selected={selected} setSelected={setSelected}
+                       focus={focus} setFocus={setFocus} onStale={() => study.refetch()}
+                       onChanged={(next) => {
+                         queryClient.setQueryData(['study', id], next.study)
+                         queryClient.setQueryData(['study', id, 'units', next.study.version], next)
+                         queryClient.invalidateQueries({ queryKey: ['studies'] })
+                       }} />
           )}
         </div>
       </div>
