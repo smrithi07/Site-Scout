@@ -675,6 +675,36 @@ Reported: a 0.8 km unit in 17 disconnected parts (study #52). Measured before ch
 - Demo studies were cancelled with a reason and rebuilt on the new seed through the API: #479
   (property 197, 3 units of ~2.1 h) and #480 (property 52, 5 units of 2.4–2.5 h, 1–2 parts each).
 
+## Phase 10a decisions (lane capture)
+
+- **One form per lane, raw observations only** (`schemas/studies.LaneObservations`, bounds that
+  reject typos not unusual lanes; unknown fields refused). Surveyed needs observations; could-not-
+  survey needs a reason and carries none (schema-level rule). Nothing is scored on the phone.
+- **Who/when**: only the unit's assignee, only lanes of that unit, only while the study is in
+  progress and the unit isn't submitted — the Survey Manager and BD roles get 403. A cancelled study
+  closes capture (409).
+- **Idempotent by client id** generated when the lane's draft is created; a re-send returns the
+  saved capture with 200 (`created: false`). A client id reused by another user is a 409.
+- **Time**: the device's capture time is kept (offline drafts are sent later) but checked: > 10 min
+  in the future or > 7 days old is refused (`studies.capture`, config 0.13.0). The time band is
+  stamped server-side from it (IST), never typed.
+- **GPS required; distance checked server-side** (new `gps_distance_m`): > 75 m from the lane is
+  saved and flagged, never refused. When location is blocked the executive taps their position on
+  the map; it is recorded with no accuracy (manual).
+- **Corrections**: a lane can be captured again until the unit is submitted; captures stay
+  append-only, the latest counts (progress + roll-up), and the re-capture is audited.
+- **Unit submit** only when every lane has a capture (surveyed or could not survey); idempotent;
+  audited with the counts. Units move draft → assigned → in progress (first capture) → submitted.
+- **Field UX**: a 5-minute timer with a large +1 tap counter (start time is in the draft, so a
+  reload keeps counting), undo / cancel, or "I counted another way"; steppers; anchor chips;
+  segmented ratings; a sticky Save listing what's still needed; next lane in walking order after
+  each save, with the previous save's confirmation and any GPS warning.
+- **Offline**: every change autosaves (localStorage); a failed network call marks the draft queued
+  and the unit page offers "Send now" (same client ids); a refused re-send un-queues it for fixing.
+  Found in testing and fixed: a failed background refetch replaced the unit page with "Failed to
+  fetch" — cached data now stays on screen with a "No connection" note.
+- Cut: capture photos (design: optional). Notes cover it for now.
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

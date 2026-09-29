@@ -121,8 +121,8 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–9b are done (M1
-  and M2 complete, M3 through planning, units and assignment); **Phase 10** (capture + roll-up) is next.
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–10a are done (M1
+  and M2 complete, M3 through lane capture); **Phase 10b** (roll-up → Catchment Summary) is next.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -224,5 +224,10 @@ frontend to hide a field.
 - Fragmentation fix: demo seed = contiguous past-unit clusters; partitioner = stretch-first
   peeling (`studies.units.method: peel`, config 0.12.0), pinned by `tests/test_partition.py`.
   Demo studies now #479 (property 197) and #480 (property 52), U1 of each assigned to Arjun.
-- Next step: **Phase 10** — lane capture (mobile form, drafts, idempotent submit, could-not-survey),
-  roll-up → Catchment Summary, v2 evaluation + v1→v2 diff. **The phase that must not slip.**
+- Phase 10a done: `services/captures.py` (assignee-only capture, idempotent client id, device
+  time checks, server time band, GPS distance flag, latest capture counts, unit submit),
+  `POST /captures`, `POST /units/{id}/submit`, migration 0012 (`gps_distance_m`), config
+  `studies.capture` (0.13.0). Frontend `features/units/CaptureForm.jsx` (+ `captureDrafts.js`,
+  offline queue) and the capture-aware `UnitPage`.
+- Next step: **Phase 10b** — roll-up job → Catchment Summary; then **10c** — v2 evaluation +
+  classified v1→v2 diff (the M1→M3 loop; must not slip).

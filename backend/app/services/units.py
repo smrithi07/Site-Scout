@@ -301,7 +301,13 @@ def unit_geojson(db: Session, u: SurveyUnit) -> dict:
                EXISTS (SELECT 1 FROM segment_captures c WHERE c.study_id = :st AND c.segment_id = ss.segment_id) AS captured
         FROM study_segments ss JOIN road_segments r ON r.snapshot_id = :s AND r.segment_id = ss.segment_id
         WHERE ss.unit_id = :u"""), dict(s=study.snapshot_id, st=study.id, u=u.id)).mappings()
+    rows = list(rows)
+    from app.services.captures import lane_status  # local: captures imports this module
+    latest = lane_status(db, study.id, [r["segment_id"] for r in rows])
     return {"type": "FeatureCollection", "features": sorted((
         {"type": "Feature", "geometry": r["geometry"],
          "properties": {**{k: r[k] for k in ("segment_id", "name", "highway", "length_m", "captured")},
-                        "order": rank[r["segment_id"]] + 1}} for r in rows), key=lambda f: f["properties"]["order"])}
+                        "order": rank[r["segment_id"]] + 1,
+                        "capture": ({k: latest[r["segment_id"]][k] for k in ("status", "reason", "time_band", "gps_distance_m")}
+                                    if r["segment_id"] in latest else None)}} for r in rows),
+        key=lambda f: f["properties"]["order"])}

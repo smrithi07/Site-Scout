@@ -2,9 +2,10 @@
 
 The study itself holds no commercial fields; the linked property goes through
 `property_response`, so the Survey Manager gets the masked survey view (no rent/deposit/owner)."""
+from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import UUID4, BaseModel, ConfigDict, Field, model_validator
 
 from app.core.auth import Role
 from app.schemas.properties import property_response
@@ -33,6 +34,34 @@ class LaneObservations(BaseModel):
     pedestrian_access: Level
     vehicle_access: Level
     parking: Literal["none", "limited", "good"]
+
+
+class CaptureIn(BaseModel):
+    """One lane, from the phone. `client_id` is generated when the draft is created, so a retried
+    submit is a no-op. Status and GPS are required; the time band is stamped server-side."""
+    model_config = ConfigDict(extra="forbid")
+    client_id: UUID4
+    unit_id: int
+    segment_id: str = Field(max_length=32)
+    status: Literal["surveyed", "could_not_survey"]
+    reason: str | None = Field(None, max_length=300)             # required for could_not_survey
+    observations: LaneObservations | None = None                  # required for surveyed
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+    gps_accuracy_m: float | None = Field(None, ge=0, le=5000)
+    captured_at: datetime | None = None                           # device time (offline drafts)
+    notes: str | None = Field(None, max_length=1000)
+
+    @model_validator(mode="after")
+    def _status_rules(self):
+        if self.status == "surveyed" and self.observations is None:
+            raise ValueError("a surveyed lane needs its observations")
+        if self.status == "could_not_survey":
+            if not (self.reason and self.reason.strip()):
+                raise ValueError("'could not survey' needs a reason")
+            if self.observations is not None:
+                raise ValueError("'could not survey' carries no observations")
+        return self
 
 
 class StudyRequest(BaseModel):

@@ -1,6 +1,6 @@
 # Savo SiteScout config. Every snapshot records `version`. Bump it on ANY change below.
 # Weights/thresholds/radii/freshness/caps are filled in as each phase needs them (see docs/DESIGN.md).
-version: "0.12.0"
+version: "0.13.0"
 
 region:
   name: Greater Chennai Corporation
@@ -176,3 +176,9 @@ studies:
     target_unit_minutes: 150           # about half a field day
     min_unit_minutes: 120              # smoothing never shrinks a unit below this…
     max_unit_minutes: 180              # …or grows one above this
+  capture:
+    # Lane capture (docs/DESIGN.md §7). Executives record raw observations; nothing is scored on the phone.
+    count_minutes: 5                  # the fixed pedestrian-count period the form times
+    gps_max_distance_m: 75            # farther than this from the lane → flagged (still saved)
+    max_future_skew_minutes: 10       # device clock ahead of the server by more → refused
+    max_backdate_days: 7              # an offline draft older than this → refused (resurvey it)

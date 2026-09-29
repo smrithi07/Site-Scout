@@ -1,6 +1,6 @@
 """M3 catchment studies: request (BD Manager), inbox + planning (Survey Manager). Thin: rules live
 in `services/studies.py`, masking in `schemas/` (the property goes through the per-role builder)."""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -10,6 +10,7 @@ from app.models import Property, Study, StudySegment, User
 from app.schemas.properties import property_response
 from app.schemas.studies import (
     CancelStudy,
+    CaptureIn,
     PlanDecision,
     Regenerate,
     StudyRequest,
@@ -20,7 +21,7 @@ from app.schemas.studies import (
     study_response,
     unit_response,
 )
-from app.services import properties, studies, units
+from app.services import captures, properties, studies, units
 
 router = APIRouter(prefix="/studies", tags=["studies"])
 unit_router = APIRouter(tags=["studies"])
@@ -160,3 +161,26 @@ def get_unit(unit_id: int, user: User = Depends(require_roles(Role.SURVEY_MANAGE
 def unit_segments(unit_id: int, user: User = Depends(require_roles(Role.SURVEY_MANAGER, Role.SURVEY_EXECUTIVE)),
                   db: Session = Depends(get_db)) -> dict:
     return units.unit_geojson(db, units.visible_unit(db, user, unit_id))
+
+
+# --- lane capture (survey executive) -----------------------------------------------------
+
+@unit_router.post("/captures", status_code=201)
+def submit_capture(body: CaptureIn, response: Response, user: User = Depends(require_roles(Role.SURVEY_EXECUTIVE)),
+                   db: Session = Depends(get_db)) -> dict:
+    """One lane. A retried submit with the same client_id returns the saved capture (200)."""
+    c, created, warnings = captures.capture(db, user, body)
+    db.commit()
+    if not created:
+        response.status_code = 200
+    return {"id": c.id, "client_id": c.client_id, "segment_id": c.segment_id, "status": c.status,
+            "time_band": c.time_band, "captured_at": c.captured_at, "gps_distance_m": c.gps_distance_m,
+            "created": created, "warnings": warnings}
+
+
+@unit_router.post("/units/{unit_id}/submit")
+def submit_unit(unit_id: int, user: User = Depends(require_roles(Role.SURVEY_EXECUTIVE)),
+                db: Session = Depends(get_db)) -> dict:
+    u = captures.submit_unit(db, user, unit_id)
+    db.commit()
+    return _unit_out(db, u, user)
