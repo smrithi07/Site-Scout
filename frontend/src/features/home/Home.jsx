@@ -12,6 +12,7 @@ const HOMES = {
     body: 'Pick an area of Chennai — by pincode, locality or cells on the map — and get an Area Fitness Report with hotspots to scout.',
     cta: { to: '/areas/analyse', label: 'Analyse an area' },
     secondary: { to: '/pipeline', label: 'Review the pipeline' },
+    explore: { to: '/opportunities', label: 'Or let the map suggest where' },
   },
 }
 
@@ -47,6 +48,12 @@ export default function Home() {
         <Link to={home.secondary.to} className="mt-6 ml-3 inline-block rounded-md px-4 py-2 font-semibold text-brand ring-1 ring-brand/40 hover:bg-white">
           {home.secondary.label}
         </Link>
+      )}
+      {home.explore && (
+        <p className="mt-4 text-sm">
+          <Link to={home.explore.to} className="font-semibold text-brand underline">{home.explore.label}</Link>
+          {' '}— the best-scoring un-scouted pockets across Chennai.
+        </p>
       )}
     </div>
   )

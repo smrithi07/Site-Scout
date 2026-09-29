@@ -776,6 +776,32 @@ Reported: a 0.8 km unit in 17 disconnected parts (study #52). Measured before ch
   narrative with its source, the factor table (normalised, weight, points) with the sum check,
   newly observed facts, new and resolved risks.
 
+## Phase 11 decisions (bonus: city-wide opportunity map)
+
+- **Pocket formation, benchmarked** on the live snapshot (410 rated selection cells): connected
+  components of top-10% score cells gave blobs of up to 90 cells plus 29 fragments under 3 cells;
+  greedy growth over selection cells (seed = best open cell, add the best adjacent cell above the
+  citywide 80th percentile, ≤ 3 cells ≈ 2 km² = one scouting trip, pocket + ring closed afterwards)
+  gave 23 compact pockets in 34 ms. Chose greedy growth.
+- **One engine, one number**: a selection cell is rated by the mean of its scoreable score cells,
+  but a pocket's displayed score is `scoring.score_area` over its score cells — exactly what the
+  area report computes, so "Run analysis" reproduces it (tested; live: Pudupet 77.3 both ways).
+- **Live view, not a snapshot**: citywide scoring costs ~20 ms once the city model is cached, so
+  the map is recomputed on request and stamped with data snapshot + config version. The immutable
+  record is the area report started from a pocket (Core rule 2 applies there).
+- **"Un-scouted"** = no property (any stage, not merged), no scout task that isn't cancelled, no
+  operational Savomart store in the selection cell. Skipped cells are shown grey with the reason.
+  Cells already covered by an area report stay eligible and are labelled "already analysed" —
+  analysed is not scouted.
+- **Honesty**: every pocket is labelled a desk estimate (proxy), nobody has visited; competition is
+  an OSM lower bound; "why" names the top two factors as "top N% of Chennai".
+- **UI**: `/opportunities` (BD Manager nav + home link). Run analysis = the existing
+  `POST /areas/reports` with the pocket's cells; Adjust cells = the analyse page pre-filled via
+  router state. Found in testing: on phones the list squeezed the map (fixed height now), and
+  pocket fill looked like the grey scouted cells (pockets are outline-only unless selected).
+- **Test hygiene found**: two concurrent `make test` runs share the test DB and "test" queue — they
+  steal each other's jobs (lease_lost), deadlock, and purge each other's fixtures. Run one at a time.
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

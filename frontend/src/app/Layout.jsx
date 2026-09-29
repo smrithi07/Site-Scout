@@ -5,6 +5,7 @@ import { useAuth } from './auth'
 const NAV = {
   bd_manager: [
     { to: '/areas/analyse', label: 'Analyse area' },
+    { to: '/opportunities', label: 'Opportunities' },
     { to: '/areas/reports', label: 'Reports' },
     { to: '/pipeline', label: 'Pipeline' },
   ],

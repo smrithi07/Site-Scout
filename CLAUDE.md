@@ -121,8 +121,8 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–10c are done (M1,
-  M2 and M3 complete — the full loop works end to end); Phases 11 (bonus) and 12 (hardening) remain.
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–11 are done (M1,
+  M2 and M3 complete, plus the opportunity-map bonus); Phase 12 (hardening) remains.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -240,5 +240,12 @@ frontend to hide a field.
   `llm/diff_narrative.py` on the generalised adapter (`NarrativeSpec`); migration 0014;
   `features/pipeline/DiffCard.jsx`. Demo: property 52 v1 64.2 → v2 61.2 via study #796.
 - **The M1→M3 loop is complete end to end.**
-- Next step: Phase 11 (bonus: opportunity map) or Phase 12 (hardening: README, fresh-clone run,
-  production build) — user's call.
+- Phase 11 done (bonus: city-wide opportunity map): `services/opportunities.py` (res-8 cells rated
+  by mean res-9 cell score, greedy pockets ≤ 3 cells above the citywide 80th percentile, each scored
+  with `scoring.score_area` so "start analysis" reproduces it; scouted cells skipped with reasons),
+  `GET /opportunities` (BD Manager), config `opportunities` (0.16.0);
+  `features/opportunities/OpportunitiesPage.jsx`; AnalysePage accepts `state.cells` (Adjust cells).
+- Don't run two `make test`s at once: they share the test DB and "test" job queue (deadlocks,
+  lease_lost, purged fixtures).
+- Next step: **Phase 12** — hardening (README, fresh-clone one-command run + demo data,
+  production build incl. the MapLibre worker asset, edge-case pass).

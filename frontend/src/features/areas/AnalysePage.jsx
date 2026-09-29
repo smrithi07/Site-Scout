@@ -2,7 +2,7 @@
 // resolved by the API to the same cell set; after that the user can click cells to add/remove.
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../../api/client'
 import { useAuth } from '../../app/auth'
 import JobProgress from '../../components/JobProgress'
@@ -36,10 +36,11 @@ export default function AnalysePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const layers = useMapLayers()
-  const [mode, setMode] = useState('pincode')
+  const initialCells = useLocation().state?.cells         // e.g. a pocket from the opportunity map
+  const [mode, setMode] = useState(initialCells ? 'cells' : 'pincode')
   const [pincode, setPincode] = useState('')
   const [locality, setLocality] = useState(null)
-  const [picked, setPicked] = useState(new Set())         // cells mode
+  const [picked, setPicked] = useState(() => new Set(initialCells ?? []))   // cells mode
   const [added, setAdded] = useState(new Set())           // edits on top of pincode/locality
   const [removed, setRemoved] = useState(new Set())
   const [job, setJob] = useState(null)
@@ -68,6 +69,12 @@ export default function AnalysePage() {
   const baseKey = JSON.stringify(base)
   const [fit, setFit] = useState(null)
   const fittedFor = useRef(null)
+  useEffect(() => {
+    if (initialCells && !fittedFor.current && preview.data) {   // cells handed over: fly there once
+      fittedFor.current = 'handed-over'
+      setFit(boundsOf(preview.data.cells_geojson))
+    }
+  }, [initialCells, preview.data])
   useEffect(() => {
     if (mode !== 'cells' && preview.data && !preview.isPlaceholderData && fittedFor.current !== baseKey) {
       fittedFor.current = baseKey
