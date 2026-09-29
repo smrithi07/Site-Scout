@@ -13,6 +13,7 @@ import { pinOverlay } from '../scouting/mapLayers'
 import { Card, OutcomeBadge, Photo, STAGE_LABEL } from '../scouting/shared'
 import RequestStudyDialog from '../studies/RequestStudyDialog'
 import StudyCard from '../studies/StudyCard'
+import DiffCard from './DiffCard'
 import { FollowUpDialog, StageDialog } from './Dialogs'
 import History from './History'
 
@@ -61,6 +62,10 @@ function QuickCard({ p }) {
         {r.stale && <span className="animate-pulse text-xs text-amber-800">re-evaluating after an edit…</span>}
       </div>
       {r.outcome_reasons?.length > 0 && <p className="mt-1 text-sm">{r.outcome_reasons.join('; ')}</p>}
+      {p.evaluation?.study_id && (
+        <p className="mt-1 text-xs text-brand">Evaluated with catchment study #{p.evaluation.study_id}: observed data replaced the estimates
+          {p.evaluation.diff && <> — score {p.evaluation.diff.score.change > 0 ? '+' : ''}{fmt(p.evaluation.diff.score.change)} vs v{p.evaluation.diff.from_version}</>}.</p>
+      )}
       {r.hard_flags?.length > 0 && (
         <ul className="mt-2 space-y-1">{r.hard_flags.map((f) => <li key={f.code} className="rounded bg-red-50 p-1.5 text-sm text-red-900">⚑ {f.message}</li>)}</ul>
       )}
@@ -142,6 +147,8 @@ function Breakdown({ p }) {
   }
   if (!latest) return null
   return (
+    <>
+    {ev && <DiffCard ev={ev} />}
     <Card title="How the score was reached" action={
       <div className="flex items-center gap-2">
         {versions.data?.length > 1 && (
@@ -165,6 +172,7 @@ function Breakdown({ p }) {
         </>
       )}
     </Card>
+    </>
   )
 }
 

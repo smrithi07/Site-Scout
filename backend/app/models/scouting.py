@@ -107,6 +107,14 @@ class PropertyEvaluation(Base):
     snapshot_id: Mapped[int] = mapped_column(ForeignKey("data_snapshots.id"))
     config_version: Mapped[str] = mapped_column(String(32))
     job_id: Mapped[int | None] = mapped_column(BigInteger)
+    # M3: the catchment summary this version used (observed signals replace proxies), the diff vs
+    # the previous version, and its narrative (who wrote it: gemini | groq | template).
+    study_id: Mapped[int | None] = mapped_column(Integer)
+    summary_id: Mapped[int | None] = mapped_column(Integer)
+    diff: Mapped[dict | None] = mapped_column(JSONB)
+    narrative: Mapped[dict | None] = mapped_column(JSONB)
+    narrative_source: Mapped[str | None] = mapped_column(String(16))
+    narrative_meta: Mapped[dict | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

@@ -1,6 +1,6 @@
 # Savo SiteScout config. Every snapshot records `version`. Bump it on ANY change below.
 # Weights/thresholds/radii/freshness/caps are filled in as each phase needs them (see docs/DESIGN.md).
-version: "0.14.0"
+version: "0.15.0"
 
 region:
   name: Greater Chennai Corporation
@@ -76,6 +76,7 @@ llm:
   # The LLM only phrases the fact sheet (Core rule 7). Provider order comes from .env
   # (LLM_PROVIDER, LLM_FALLBACK_PROVIDER); the template is always the last resort.
   prompt_version: "area-narrative-v1"   # bump when the prompt changes (it's part of the cache key)
+  diff_prompt_version: "diff-narrative-v1"
   cache: true                  # same fact sheet + provider + model + prompt → reuse, no API call
   temperature: 0.2
   max_output_tokens: 1200
@@ -110,6 +111,13 @@ evaluation:
   visibility_scores: {poor: 20, fair: 60, good: 100}
   frontage_ft: {low: 10, high: 20}   # ≤ low → 0, ≥ high → 100, linear between
   risks: {competitors_many: 5, road_width_narrow_ft: 12}
+  # After a catchment study (docs/DESIGN.md §7 Property re-evaluation): observed signals REPLACE the
+  # proxies for these factors, and observed footfall joins as a new factor (it had no proxy). Weights
+  # are renormalised over the available factors, as always. A facts-only summary replaces nothing.
+  study:
+    replaces: {site_demand: residential, competition: competition, accessibility: accessibility}
+    footfall_weight: 15
+    risks: {footfall_low_score: 20, poor_access_share: 0.4, competitors_many_observed: 15}
 
 mock_rent_bands:
   # ILLUSTRATIVE ONLY (provenance: mock). ₹ per sq ft per month for small retail frontage, by GCC
@@ -149,8 +157,8 @@ scoring:
   accessibility: {main_road_multiplier: 2.0}
   rating_bands: [{min: 70, label: Strong fit}, {min: 50, label: Moderate fit}, {min: 0, label: Weak fit}]
   confidence:
-    quality: {observed: 1.0, observed_self_reported: 0.8, derived: 0.8, observed_lower_bound: 0.7,
-              proxy: 0.6, mock: 0.3, missing: 0.0}
+    quality: {observed: 1.0, observed_reused: 0.9, observed_self_reported: 0.8, derived: 0.8, observed_lower_bound: 0.7,
+              mixed: 0.6, proxy: 0.6, mock: 0.3, missing: 0.0}
     high: 0.75
     medium: 0.5
   hotspots: {count: 5, min_separation_k: 1}

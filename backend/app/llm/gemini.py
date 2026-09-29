@@ -13,12 +13,12 @@ class Gemini:
     def __init__(self, api_key: str, model: str, client: httpx.Client):
         self.api_key, self.model, self.client = api_key, model, client
 
-    def generate(self, system: str, user: str, cfg: dict, timeout: httpx.Timeout) -> Reply:
+    def generate(self, system: str, user: str, cfg: dict, timeout: httpx.Timeout, schema: dict | None = None) -> Reply:
         body = {
             "systemInstruction": {"parts": [{"text": system}]},
             "contents": [{"role": "user", "parts": [{"text": user}]}],
             "generationConfig": {"temperature": cfg["temperature"], "maxOutputTokens": cfg["max_output_tokens"],
-                                 "responseMimeType": "application/json", "responseSchema": OUTPUT_SCHEMA},
+                                 "responseMimeType": "application/json", "responseSchema": schema or OUTPUT_SCHEMA},
         }
         r = post(self.client, self.name, URL.format(model=self.model), json=body,
                  headers={"x-goog-api-key": self.api_key}, timeout=timeout)

@@ -5,6 +5,9 @@ normalised → weight → points, with provenance — but at site level around t
   shown, labelled provisional). Too much missing weight → Needs Info.
 - A hard flag (an operational Savomart within 400 m) caps the outcome one level.
 - Risks are rule-based: rule id, severity, evidence. No LLM involved.
+- After a catchment study, its summary's observed signals REPLACE the proxies for demand,
+  competition and accessibility, and observed footfall joins as a new factor (config
+  `evaluation.study`). A facts-only summary replaces nothing (and says so).
 """
 from bisect import bisect_left, bisect_right
 from statistics import mean
@@ -64,7 +67,9 @@ def _site_demand_table(model: scoring.CityModel, k: int) -> tuple[dict, list]:
     return model.extras[key]
 
 
-def evaluate(db: Session, inputs: dict, snapshot_id: int) -> dict:
+def evaluate(db: Session, inputs: dict, snapshot_id: int, study: dict | None = None) -> dict:
+    """`study`: the latest Catchment Summary of the property's latest complete study, as stored
+    (study_id, summary_id, summary_version, signals, facts_only, confidence, coverage) — or None."""
     cfg, sc = load_config()["evaluation"], load_config()["scoring"]
     model = scoring.city_model(db, snapshot_id)
     lat, lon = inputs["lat"], inputs["lon"]
@@ -121,12 +126,35 @@ def evaluate(db: Session, inputs: dict, snapshot_id: int) -> dict:
     cs = scoring.cell_score(model, cell, sc["weights"], sc["max_missing_weight_fraction"])[0] if cell else None
     values["area_opportunity"] = (cs, cs, None if cs is not None else "The pin's cell isn't scoreable land.")
 
+    # Observed catchment signals replace proxies; footfall joins (docs/DESIGN.md §7 re-evaluation)
+    weights = dict(cfg["weights"])
+    meta = dict(FACTOR_META)
+    replaced: list[str] = []
+    if study and not study["facts_only"]:
+        src = f"Catchment study #{study['study_id']} (summary v{study['summary_version']})"
+        sig = study["signals"]
+        for factor, key in cfg["study"]["replaces"].items():
+            x = sig[key]
+            if x["normalized"] is None:
+                continue
+            values[factor] = (x["value"], x["normalized"], None)
+            meta[factor] = (FACTOR_META[factor][0], x["unit"], x["provenance"], src,
+                            f"Observed on {x['lanes']} surveyed lanes; replaces the {FACTOR_META[factor][2].replace('_', ' ')} "
+                            f"estimate ({FACTOR_META[factor][3]}).")
+            replaced.append(factor)
+        f = sig["footfall"]
+        if f["normalized"] is not None:
+            weights["footfall"] = cfg["study"]["footfall_weight"]
+            values["footfall"] = (f["value"], f["normalized"], None)
+            meta["footfall"] = ("Observed footfall", f["unit"], f["provenance"], src,
+                                "Timed pedestrian counts on surveyed lanes — a factor only a study can supply."
+                                + (" Counted in a single time band." if f.get("single_band") else ""))
+
     # Assemble: renormalise over available factors
-    weights = cfg["weights"]
     avail_w = sum(w for f, w in weights.items() if values[f][1] is not None)
     factors = []
     for f, w in weights.items():
-        label, unit, prov, source, note = FACTOR_META[f]
+        label, unit, prov, source, note = meta[f]
         raw, norm, override = values[f]
         eff = round(100 * w / avail_w, 1) if norm is not None and avail_w else 0.0
         factors.append({"factor": f, "label": label, "unit": unit, "source": source, "note": override or note,
@@ -165,9 +193,31 @@ def evaluate(db: Session, inputs: dict, snapshot_id: int) -> dict:
         risks.append({"rule_id": "R-RENT-UNVERIFIED", "severity": "medium", "message": "Rent looks wrong or unconfirmed "
                       "(outlier or zero) — verify amount and unit.", "evidence": {}})
     comp_raw = values["competition"][0]
-    if comp_raw is not None and comp_raw >= cfg["risks"]["competitors_many"]:
+    if "competition" in replaced:
+        est = study["signals"]["competition"].get("estimated_catchment_count")
+        if est is not None and est >= cfg["study"]["risks"]["competitors_many_observed"]:
+            risks.append({"rule_id": "R-COMPETITION-OBSERVED", "severity": "medium", "message":
+                          f"≈{est:.0f} grocery/food stores across the catchment (survey estimate; OSM lists "
+                          f"{study['signals']['competition'].get('osm_count')}).", "evidence": {"estimate": est}})
+    elif comp_raw is not None and comp_raw >= cfg["risks"]["competitors_many"]:
         risks.append({"rule_id": "R-COMPETITION", "severity": "medium", "message": f"{comp_raw:.0f} grocery/convenience "
                       "shops mapped within ~650 m (a lower bound).", "evidence": {"count": comp_raw}})
+    if study:
+        sr, sig = cfg["study"]["risks"], study["signals"]
+        if study["facts_only"]:
+            risks.append({"rule_id": "R-STUDY-THIN", "severity": "low", "message": "The catchment study covered too little "
+                          "to score — the estimates were kept.", "evidence": {"coverage": study["coverage"].get("surveyed_share")}})
+        else:
+            if sig["footfall"]["normalized"] is not None and sig["footfall"]["normalized"] < sr["footfall_low_score"]:
+                risks.append({"rule_id": "R-FOOTFALL-LOW", "severity": "medium", "message": f"Low observed footfall "
+                              f"({sig['footfall']['value']:.0f} pedestrians per hour).", "evidence": {"per_hour": sig["footfall"]["value"]}})
+            if sig["footfall"].get("single_band"):
+                risks.append({"rule_id": "R-FOOTFALL-BAND", "severity": "low", "message": "Footfall was counted in a single "
+                              "time band — other times of day are unobserved.", "evidence": {"bands": sig["footfall"].get("time_bands")}})
+            poor = sig["accessibility"].get("share_poor")
+            if poor is not None and poor >= sr["poor_access_share"]:
+                risks.append({"rule_id": "R-ACCESS-OBSERVED", "severity": "medium", "message": f"{poor:.0%} of surveyed "
+                              "lanes have poor pedestrian or vehicle access.", "evidence": {"share_poor": poor}})
     if inputs.get("status") == "possible_duplicate":
         risks.append({"rule_id": "R-DUPLICATE", "severity": "medium", "message": "Possible duplicate not yet resolved.",
                       "evidence": {"candidates": [c["id"] for c in inputs.get("duplicate_candidates", [])]}})
@@ -204,7 +254,9 @@ def evaluate(db: Session, inputs: dict, snapshot_id: int) -> dict:
     return {"outcome": outcome, "outcome_reasons": reasons, "score": score, "provisional": outcome == "Needs Info",
             "confidence": confidence, "factors": factors, "missing_weight_fraction": round(missing_fraction, 2),
             "hard_flags": hard_flags, "risks": risks, "completeness": completeness, "cell": cell,
-            "rent": {"per_sqft": round(per_sqft, 1) if per_sqft else None, "band": band}}
+            "rent": {"per_sqft": round(per_sqft, 1) if per_sqft else None, "band": band},
+            "study": None if not study else {k: study[k] for k in ("study_id", "summary_id", "summary_version",
+                                                                    "confidence", "facts_only")} | {"replaced": replaced}}
 
 
 def review_card(p, ev) -> dict:

@@ -156,9 +156,13 @@ async def upload_photo(property_id: int, file: UploadFile = File(...), user: Use
 
 
 def _evaluation_out(ev: PropertyEvaluation) -> dict:
-    return {k: getattr(ev, k) for k in ("id", "version", "property_version", "trigger", "outcome", "score", "confidence",
-                                        "hard_flags", "risks", "factors", "completeness", "snapshot_id",
-                                        "config_version", "job_id", "created_at")}
+    out = {k: getattr(ev, k) for k in ("id", "version", "property_version", "trigger", "outcome", "score", "confidence",
+                                       "hard_flags", "risks", "factors", "completeness", "snapshot_id",
+                                       "config_version", "job_id", "created_at", "study_id", "summary_id", "diff",
+                                       "narrative", "narrative_source")}
+    meta = ev.narrative_meta or {}
+    out["narrative_meta"] = {k: meta.get(k) for k in ("model", "cached", "attempts")} if meta else None
+    return out
 
 
 @router.get("/properties/{property_id}/evaluations")
@@ -167,7 +171,7 @@ def list_evaluations(property_id: int, user: User = Depends(bd), db: Session = D
     evs = db.scalars(select(PropertyEvaluation).where(PropertyEvaluation.property_id == property_id)
                      .order_by(PropertyEvaluation.version.desc()))
     return [{k: getattr(e, k) for k in ("id", "version", "trigger", "outcome", "score", "confidence", "created_at",
-                                        "config_version")} for e in evs]
+                                        "config_version", "study_id")} | {"has_diff": e.diff is not None} for e in evs]
 
 
 @router.get("/properties/{property_id}/evaluations/{version}")

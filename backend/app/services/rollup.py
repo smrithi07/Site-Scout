@@ -24,7 +24,7 @@ from app.core.errors import Conflict, Forbidden, NotFound, Unprocessable
 from app.core.locking import update_versioned
 from app.models import CatchmentSummary, Job, Property, Study, SurveyUnit, User
 from app.schemas.studies import LaneObservations
-from app.services import pipeline
+from app.services import pipeline, properties
 
 LEVELS = ["low", "medium", "high"]
 
@@ -288,4 +288,6 @@ def save(db: Session, study_id: int, result: dict, trigger: str, job_id: int | N
     else:
         audit.record(db, actor=None, entity_type="study", entity_id=study.id, action="summary_rerun",
                      reason=f"catchment summary v{version} ({trigger})", details={"summary_id": summary.id})
+    # Re-evaluate with the observed signals: a new evaluation version via a job (earlier versions stay).
+    properties.request_evaluation(db, db.get(Property, study.property_id), None, "study_complete")
     return summary

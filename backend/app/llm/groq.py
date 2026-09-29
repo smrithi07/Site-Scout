@@ -12,7 +12,8 @@ class Groq:
     def __init__(self, api_key: str, model: str, client: httpx.Client):
         self.api_key, self.model, self.client = api_key, model, client
 
-    def generate(self, system: str, user: str, cfg: dict, timeout: httpx.Timeout) -> Reply:
+    def generate(self, system: str, user: str, cfg: dict, timeout: httpx.Timeout, schema: dict | None = None) -> Reply:
+        # Groq: JSON mode; the output shape is enforced by the prompt + validator (schema unused).
         body = {
             "model": self.model,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],

@@ -17,6 +17,7 @@ import logging
 import random
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import lru_cache
 
@@ -84,6 +85,29 @@ class _Guards:
 guards = _Guards()
 
 
+@dataclass(frozen=True)
+class NarrativeSpec:
+    """What one kind of narrative needs from the chain: its prompt, output schema, validator,
+    deterministic template, how to shape the final narrative (code-owned parts included), and the
+    config key of its prompt version (part of the cache key)."""
+    purpose: str
+    prompt_version_key: str
+    system: str
+    schema: dict
+    user_message: Callable[[dict, list[str] | None], str]
+    validate: Callable[[object, dict, list[str] | None], list[str]]
+    template: Callable[[dict], dict]
+    finish: Callable[[dict, dict], dict]
+
+
+AREA = NarrativeSpec(
+    purpose="area_narrative", prompt_version_key="prompt_version", system=prompt.SYSTEM, schema=prompt.OUTPUT_SCHEMA,
+    user_message=prompt.user_message, validate=validate, template=template.narrate,
+    # The model writes summary/why/where; caveats always come from code.
+    finish=lambda parsed, fallback: {"summary": parsed["summary"], "why": parsed["why"],
+                                     "where_to_scout": parsed["where_to_scout"], "caveats": fallback["caveats"]})
+
+
 @lru_cache
 def configured_providers() -> tuple:
     """Built once per process (one pooled HTTP client per provider)."""
@@ -109,10 +133,13 @@ def _parse(text: str) -> object:
 
 
 def narrate(sheet: dict, *, entities: list[str] | None = None, job_id: int | None = None,
-            providers: list | None = None, cfg: dict | None = None, purpose: str = "area_narrative") -> NarrativeResult:
+            providers: list | None = None, cfg: dict | None = None, purpose: str | None = None,
+            spec: NarrativeSpec = AREA) -> NarrativeResult:
     cfg = cfg or load_config()["llm"]
+    purpose = purpose or spec.purpose
+    prompt_version = cfg[spec.prompt_version_key]
     providers = configured_providers() if providers is None else providers
-    fallback = template.narrate(sheet)
+    fallback = spec.template(sheet)
     digest, attempts = sheet_hash(sheet), []
     deadline = time.monotonic() + cfg["total_budget_s"]
     if not providers:
@@ -120,16 +147,13 @@ def narrate(sheet: dict, *, entities: list[str] | None = None, job_id: int | Non
                          "reason": "no LLM provider configured (check *_API_KEY / *_MODEL in .env)"})
 
     def finish(parsed: dict, source: str, model: str | None, cached: bool) -> NarrativeResult:
-        # The model writes summary/why/where; caveats always come from code.
-        narrative = {"summary": parsed["summary"], "why": parsed["why"], "where_to_scout": parsed["where_to_scout"],
-                     "caveats": fallback["caveats"]}
-        return NarrativeResult(narrative, source, model, cached, attempts)
+        return NarrativeResult(spec.finish(parsed, fallback), source, model, cached, attempts)
 
     for p in providers:
-        base = dict(purpose=purpose, provider=p.name, model=p.model, prompt_version=cfg["prompt_version"],
+        base = dict(purpose=purpose, provider=p.name, model=p.model, prompt_version=prompt_version,
                     sheet_sha256=digest, job_id=job_id)
-        if cfg["cache"] and (hit := calls.cached(purpose, digest, p.name, p.model, cfg["prompt_version"])):
-            if not validate(hit, sheet, entities):  # re-check: validator rules may have tightened
+        if cfg["cache"] and (hit := calls.cached(purpose, digest, p.name, p.model, prompt_version)):
+            if not spec.validate(hit, sheet, entities):  # re-check: validator rules may have tightened
                 calls.log(**base, attempt=0, status="cached")
                 attempts.append({"provider": p.name, "status": "cached"})
                 return finish(hit, p.name, p.model, cached=True)
@@ -147,7 +171,7 @@ def narrate(sheet: dict, *, entities: list[str] | None = None, job_id: int | Non
                                     connect=cfg["connect_timeout_s"])
             t0 = time.monotonic()
             try:
-                reply = p.generate(prompt.SYSTEM, prompt.user_message(sheet, feedback), cfg, timeout)
+                reply = p.generate(spec.system, spec.user_message(sheet, feedback), cfg, timeout, schema=spec.schema)
             except ProviderError as exc:
                 ms = int((time.monotonic() - t0) * 1000)
                 calls.log(**base, attempt=attempt, status="error", http_status=exc.http_status, error=str(exc)[:1000],
@@ -170,7 +194,7 @@ def narrate(sheet: dict, *, entities: list[str] | None = None, job_id: int | Non
                          output_tokens=reply.output_tokens)
             try:
                 parsed = _parse(reply.text)
-                errors = validate(parsed, sheet, entities)
+                errors = spec.validate(parsed, sheet, entities)
             except (json.JSONDecodeError, ValueError) as exc:
                 parsed, errors = None, [f"answer is not valid JSON ({exc})"]
             if errors:
