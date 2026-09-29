@@ -742,6 +742,40 @@ Reported: a 0.8 km unit in 17 disconnected parts (study #52). Measured before ch
   through the API with reasons: #795 (property 197, in progress, U1 → Arjun) and #796 (property 52,
   closed early → summary v1). The old #480 summary stays on record (immutable).
 
+## Phase 10c decisions (v2 evaluation + diff — the M1→M3 loop)
+
+- **Trigger**: saving a Catchment Summary completes the study and enqueues a `property_evaluation`
+  with trigger `study_complete` (after the study transition, same code path as any re-evaluation).
+  The job's steps are load (latest summary + previous evaluation) → evaluate → diff → narrative →
+  save. v1 is never touched; v2 is a new immutable version (migration 0014 adds `study_id`,
+  `summary_id`, `diff`, `narrative`, `narrative_source`, `narrative_meta`).
+- **What the study replaces** (`evaluation.study.replaces`, config 0.15.0): site demand ← observed
+  residential density, competition ← observed competition, accessibility ← observed accessibility,
+  each with the summary's provenance (observed / mixed) and source "Catchment study #N (summary vX)".
+  **Footfall** joins as a new factor (weight 15). Other factors keep their estimates; weights
+  renormalise as always. **A facts-only summary replaces nothing** — estimates stay, and
+  R-STUDY-THIN says why. New study risks: R-COMPETITION-OBSERVED, R-FOOTFALL-LOW,
+  R-FOOTFALL-BAND (single time band), R-ACCESS-OBSERVED (share of lanes rated poor).
+- **Diff classification** (`services/diff.py`, pure): every changed factor gets all causes that
+  apply and a primary one in the order newly included > dropped > data change > config change >
+  renormalization. Same raw value normalising differently is a data change if the data snapshot
+  moved, else a config change. **Renormalization** is primary only when nothing about the factor
+  itself changed. Per-factor point changes must add up to the score change; the diff carries the
+  rounding gap and the UI shows it.
+- **Honesty fix found live**: competition "improved" (+7.2) although the survey found ≈12× OSM's
+  store count — because the estimate is a citywide percentile and the study value is scored on
+  uncalibrated thresholds. Rather than hide it, the explanation for any proxy → study switch says
+  the scales differ, the fact sheet carries that caveat, and the review page shows a "Not
+  like-for-like" note pointing at the observed facts. Calibrating thresholds needs real surveys.
+- **Narrative**: the adapter was generalised to a `NarrativeSpec` (system prompt, schema, user
+  message, validator, template, finish) so the diff reuses the whole chain (cache → Gemini → Groq
+  → template, retries, breaker). The diff validator checks numbers (absolute values allowed, so
+  "down 8" traces to −8.0), ratings, causes (no cause the sheet doesn't give) and place names. The
+  template passes its own validator (tested). Bump `llm.diff_prompt_version` when the prompt changes.
+- **UI**: `DiffCard` on the BD review page — before/after score and rating, cause chips, the
+  narrative with its source, the factor table (normalised, weight, points) with the sum check,
+  newly observed facts, new and resolved risks.
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

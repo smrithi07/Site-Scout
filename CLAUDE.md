@@ -121,8 +121,8 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–10b are done (M1
-  and M2 complete, M3 through the Catchment Summary); **Phase 10c** (v2 evaluation + diff) is next.
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–10c are done (M1,
+  M2 and M3 complete — the full loop works end to end); Phases 11 (bonus) and 12 (hardening) remain.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -234,5 +234,11 @@ frontend to hide a field.
   plan / Survey Manager close-early or re-run), `GET /studies/{id}/summary`, `SummaryCard`.
   Worker now survives unknown job kinds and reloads on code/config changes (compose). Demo:
   study #796 (property 52) has summary v1; #795 (property 197) is in progress.
-- Next step: **Phase 10c** — v2 evaluation from the summary + classified v1→v2 diff + narrative
-  (the M1→M3 loop; must not slip).
+- Phase 10c done: study complete → `property_evaluation` (trigger `study_complete`) → v2 with
+  observed site demand / competition / accessibility + footfall (`evaluation.study`, config
+  0.15.0); `services/diff.py` (pure, classified v1→v2 diff whose points add up);
+  `llm/diff_narrative.py` on the generalised adapter (`NarrativeSpec`); migration 0014;
+  `features/pipeline/DiffCard.jsx`. Demo: property 52 v1 64.2 → v2 61.2 via study #796.
+- **The M1→M3 loop is complete end to end.**
+- Next step: Phase 11 (bonus: opportunity map) or Phase 12 (hardening: README, fresh-clone run,
+  production build) — user's call.
