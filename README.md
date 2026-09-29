@@ -128,15 +128,18 @@ proxies `/api` to FastAPI; the job worker runs alongside) plus Render Postgres w
 Singapore, described by [`render.yaml`](render.yaml). Same origin, so no CORS and no cross-service URLs.
 No LLM keys are deployed: narratives use the deterministic template.
 
-1. **Build the data** (locally, ~2 min): `make deploy-export` builds a clean database (schema, a fresh
-   snapshot, the demo story) in a throwaway project and dumps it to `data/processed/sitescout_deploy.dump`
-   (~24 MB; the ingest-only building tables are left out).
+1. **Build the data** (locally): either `make deploy-export`, a clean database (schema, a fresh
+   snapshot, the demo story; ~2 min, ~24 MB), or `make deploy-export-local`, your dev database as it is,
+   with all its history (~15 s, ~128 MB). Both go to `data/processed/sitescout_deploy.dump` and leave out
+   the ingest-only building tables.
 2. **Create the services**: Render → *New* → *Blueprint* → this GitHub repo. It creates `sitescout`
    (web) and `sitescout-db` (Postgres) and builds the image.
 3. **Load the data**: copy the database's *External Database URL* from Render, then
-   `DEPLOY_DATABASE_URL='<url>' make deploy-restore` (refuses a database that already has data).
+   `DEPLOY_DATABASE_URL='<url>' make deploy-restore`. It replaces the empty schema the app creates on its
+   first start, and refuses real data unless `DEPLOY_REPLACE=yes`. Then restart the service.
 4. Open the service URL. On the free plan the service sleeps after 15 min idle (first request ~1 min),
-   jobs run while it's awake, uploaded photos don't survive a restart, and a free database expires
+   jobs run while it's awake, property photos (stored on disk, not in the database) aren't carried over
+   and don't survive a restart, and a free database expires
    after 30 days.
 
 Rehearsed locally end to end (stand-in PostGIS, a `postgres://` URL and `PORT` as Render sets them):

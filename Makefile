@@ -1,4 +1,4 @@
-.PHONY: setup fetch-data demo prod deploy-export deploy-restore up down logs ps health test psql migrate ingest gate reload-env llm-smoke seed-captures
+.PHONY: setup fetch-data demo prod deploy-export deploy-export-local deploy-restore up down logs ps health test psql migrate ingest gate reload-env llm-smoke seed-captures
 
 # Fresh clone → running app with data, in one command (idempotent; see scripts/setup.sh).
 setup:
@@ -18,9 +18,12 @@ prod:
 	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 
 # Deployment data (README §Deploy): build + dump a clean database, then load it into the host's
-# Postgres. Usage: make deploy-export   |   DEPLOY_DATABASE_URL='<external url>' make deploy-restore
+# Postgres. Usage: make deploy-export (clean) or make deploy-export-local (your dev DB)   |   DEPLOY_DATABASE_URL='<external url>' make deploy-restore
 deploy-export:
 	scripts/export_db.sh
+
+deploy-export-local:
+	scripts/export_db.sh --local
 
 deploy-restore:
 	scripts/restore_db.sh
