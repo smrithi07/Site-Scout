@@ -121,8 +121,9 @@ frontend to hide a field.
   designing or building anything.**
 - `docs/DATA.md` — every data source, what we chose and why, download status, known gaps,
   the Phase 2 land-use/coverage gate.
-- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. Phases 0a–11 are done (M1,
-  M2 and M3 complete, plus the opportunity-map bonus); Phase 12 (hardening) remains.
+- `docs/PHASES.md` — the phase-by-phase build plan with checkpoints. All phases (0a–12d) are done:
+  M1–M3, the opportunity-map bonus, and hardening (one-command setup, demo story, prod build).
+- `docs/EDGE_CASES.md` — every DESIGN.md edge case → where it's handled → its test.
 - `docs/DECISIONS.md` — a running log of decisions, corrections, and open questions, in the
   order they were made. Read this to understand *why* something is the way it is, or to see
   what's still unresolved.
@@ -255,5 +256,7 @@ frontend to hide a field.
   rewritten around it; README §3 has features by persona + the full feature list.
 - Phase 12c done: `make demo` (`app/demo/story.py`) — full story through the real API (demo queue,
   template narratives, `captures.SOURCE = "demo_seed"`), idempotent, `ARGS=--purge` / `--llm`.
-- Next step: **Phase 12d** — hardening (README, fresh-clone one-command run + demo data,
-  production build incl. the MapLibre worker asset, edge-case pass).
+- Phase 12d done: MapLibre worker bundled (`MapView.jsx` `setWorkerUrl`), `make prod`
+  (`docker-compose.prod.yml`, multi-stage `frontend/Dockerfile`, `frontend/nginx.conf`),
+  `docs/EDGE_CASES.md`, stale-Stores test. 227 tests. **All phases done.**
+- Remaining before submission: the video link in README (placeholder).

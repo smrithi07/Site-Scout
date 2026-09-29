@@ -16,7 +16,7 @@ Built solo for the Savomart full-stack hackathon, 28–30 Sep 2026. The git hist
 
 Deeper design notes live in [`docs/`](docs/): [`DESIGN.md`](docs/DESIGN.md) (full design),
 [`DECISIONS.md`](docs/DECISIONS.md) (every decision in order, with the reasoning and measurements),
-[`PHASES.md`](docs/PHASES.md) (build plan and checkpoints), [`DATA.md`](docs/DATA.md) and
+[`PHASES.md`](docs/PHASES.md) (build plan and checkpoints), [`EDGE_CASES.md`](docs/EDGE_CASES.md) (each edge case → its test), [`DATA.md`](docs/DATA.md) and
 [`data/MANIFEST.md`](data/MANIFEST.md) (data sources, citations).
 
 ---
@@ -53,6 +53,10 @@ takes ~16 s. The first download adds ~3–10 min depending on the network.
 - **Web:** http://localhost:5173 (choose a user on the landing page)
 - **API:** http://localhost:8000, interactive docs at http://localhost:8000/docs
 - `make reload-env` after editing `.env` (containers read it only when created).
+- **`make prod`** runs the production build instead: the static frontend behind nginx on the same port,
+  the API without `--reload`, the worker without the file watcher. `make up` returns to dev mode.
+- The Stores list is used only while it's under 30 days old; after that cannibalisation is excluded (and
+  says why). To refresh it: `rm data/raw/stores/*.json && make fetch-data && make ingest`.
 
 ### 1.2 Where the raw data comes from
 
@@ -120,7 +124,7 @@ template (no LLM calls; `make demo ARGS=--llm` to let the configured provider wr
 ### 1.6 Tests
 
 ```bash
-make test      # 226 tests, ~40 s, inside the api container. Never call a real LLM API.
+make test      # 227 tests, ~40 s, inside the api container. Never call a real LLM API.
 ```
 
 Run one `make test` at a time: runs share the test database and job queue. On a fresh install one
@@ -431,8 +435,10 @@ The full log with measurements is [`docs/DECISIONS.md`](docs/DECISIONS.md). The 
   built; studies are per property.
 - **Capture photos** are not implemented (notes only); property photos are.
 - **Offline**: drafts and a send queue, not a full offline-first sync; the base map needs a network.
-- **Production build not packaged**: Compose runs the Vite dev server and `uvicorn --reload`. The
-  MapLibre worker asset has not been checked in a production bundle yet.
+- **No public deployment**: `make prod` is a production-style local run (nginx + static build); it
+  hasn't been deployed to a server, so there is no shared URL.
+- **Reassigning a unit mid-survey** is handled in code (captures stay) but not exercised by a test,
+  because only one Survey Executive is seeded.
 - Pincode polygons are ~12 years old (Voronoi extents fill the gaps, labelled approximate).
 
 **With more time:** calibrate study thresholds from accumulated surveys; isochrone catchments
@@ -466,7 +472,8 @@ backend/app/            api/ (routers) · services/ (all business rules) · sche
                         models/ · jobs/ (queue, worker, steps) · llm/ (adapter, providers, validators)
 backend/ingest/         offline snapshot builder (never used at request time)
 backend/alembic/        migrations 0001–0014
-backend/tests/          226 tests (scoring, access matrix, reuse, units, capture, roll-up, diff…)
+backend/tests/          227 tests (scoring, access matrix, reuse, units, capture, roll-up, diff…);
+                        every DESIGN.md edge case → its test: docs/EDGE_CASES.md
 frontend/src/features/  areas · opportunities · scouting · pipeline · studies · units
 docs/                   BRIEF, DESIGN, DECISIONS, PHASES, DATA, images/
 data/MANIFEST.md        citations for every dataset

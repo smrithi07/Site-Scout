@@ -837,6 +837,24 @@ Reported: a 0.8 km unit in 17 disconnected parts (study #52). Measured before ch
 - **Verified on a fresh install** (separate compose project + volume): 4.5 s, every persona's home
   populated as described, purge → reseed works, a second run is a no-op, tests 225 + 1 skip.
 
+## Phase 12d decisions (production build, edge-case pass)
+
+- **MapLibre's worker was missing from the production bundle.** MapLibre 6 builds the worker URL
+  from a variable (`new URL(e, import.meta.url)`), which Vite can't analyse, so `dist/` had no worker
+  and a production map would stay blank; the dev server (serving node_modules as-is) hid it. Fix:
+  import the worker with `?worker&url` (ES format — MapLibre starts a module worker) and call
+  `setWorkerUrl`; Vite then bundles it with its shared chunk. Verified in the browser in both modes.
+- **`make prod`** is a compose override, not a second stack: nginx serves the static build on the
+  same port (SPA fallback, immutable hashed assets, gzip), the api runs without `--reload` (2
+  workers), the worker without `watchfiles`. `VITE_API_URL` is a build arg (Vite bakes it in).
+- **Edge-case audit** (`docs/EDGE_CASES.md`): every case in DESIGN.md §8–§10 mapped to its handling
+  and test, with the names verified by a script. One gap: a stale Stores cache was handled (factor
+  excluded with its age, weights renormalised) but untested — test added. Decided: the hard flag
+  keeps using the last known store list even when stale (dropping a store next door because the list
+  is old is the worse error). One case stays untested: reassigning a unit mid-survey (one seeded
+  Survey Executive). Found along the way: the stores file ages out 30 days after download, so the
+  README now says how to refresh it.
+
 ## Open questions carried into the next session
 
 1. **Metro fringe: in or out?** Locked rule is "GCC core, add fringe only if data quality

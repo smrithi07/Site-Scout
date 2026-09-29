@@ -75,6 +75,32 @@ def test_store_next_door_is_a_hard_flag_that_caps_the_outcome(client):
         assert any("capped" in r for r in ev["completeness"]["outcome_reasons"])
 
 
+def test_a_stale_stores_cache_excludes_cannibalisation_and_says_why(client, monkeypatch):
+    """docs/DESIGN.md §9: Stores API down → use the cache, stamp its age, exclude cannibalisation once
+    the cache is too old. The hard flag still uses the last known list (a store next door is too
+    important to drop because the list is old)."""
+    from app.core.db import SessionLocal
+    from app.services import scoring, selection
+
+    monkeypatch.setattr(scoring, "_stores_age_days", lambda db, s: 45.0)
+    scoring._cache.clear()                                  # rebuild the city model with the old cache
+    try:
+        with SessionLocal() as db:
+            r = selection.resolve(db, selection.Selection(mode="pincode", pincode="600017"))
+            area = scoring.score_area(scoring.city_model(db, r["snapshot_id"]), r["score_cells"])
+        can = next(f for f in area["factors"] if f["factor"] == "cannibalisation")
+        assert can["provenance"] == "missing" and can["normalized"] is None and "45 days old" in can["note"]
+        assert area["status"] == "scored"                  # 15% missing is under the facts-only limit
+        assert sum(f["effective_weight"] for f in area["factors"]) == pytest.approx(100, abs=0.2)
+
+        ev = onboard(client, lat=A_STORE[0] + 0.0004, lon=A_STORE[1])["evaluation"]
+        can = next(f for f in ev["factors"] if f["factor"] == "cannibalisation")
+        assert can["normalized"] is None and "45 days old" in (can.get("note") or "")
+        assert [f["code"] for f in ev["hard_flags"]] == ["store_too_close"]
+    finally:
+        scoring._cache.clear()
+
+
 def test_edit_creates_v2_and_versions_are_immutable(client):
     p = onboard(client)
     client.patch(f"/properties/{p['id']}", json={"version": p["version"], "changes": {"visibility": "poor"}}, headers=BDE)
