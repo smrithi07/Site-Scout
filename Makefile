@@ -1,4 +1,4 @@
-.PHONY: setup fetch-data demo prod up down logs ps health test psql migrate ingest gate reload-env llm-smoke seed-captures
+.PHONY: setup fetch-data demo prod deploy-export deploy-restore up down logs ps health test psql migrate ingest gate reload-env llm-smoke seed-captures
 
 # Fresh clone → running app with data, in one command (idempotent; see scripts/setup.sh).
 setup:
@@ -16,6 +16,14 @@ demo:
 # Production-style run: static frontend behind nginx, no reloaders (back to dev: `make up`).
 prod:
 	docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+# Deployment data (README §Deploy): build + dump a clean database, then load it into the host's
+# Postgres. Usage: make deploy-export   |   DEPLOY_DATABASE_URL='<external url>' make deploy-restore
+deploy-export:
+	scripts/export_db.sh
+
+deploy-restore:
+	scripts/restore_db.sh
 
 # -V renews anonymous volumes: web's node_modules would otherwise survive a dependency change.
 # The database uses a named volume (pgdata), which is kept.

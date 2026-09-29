@@ -1,0 +1,30 @@
+# Render Blueprint (Dashboard → New → Blueprint → this repo). Creates one Docker web service
+# (nginx + API + job worker, deploy/Dockerfile) and a PostGIS-capable Postgres, both in Singapore
+# (closest region to Chennai). The database starts empty: load the data with `make deploy-restore`
+# (README §Deploy). Narratives use the deterministic template: no LLM keys are set here.
+services:
+  - type: web
+    name: sitescout
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerContext: .
+    dockerfilePath: ./deploy/Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sitescout-db
+          property: connectionString
+      - key: APP_SECRET
+        generateValue: true
+      - key: DEMO_AUTH
+        value: "true"
+
+databases:
+  - name: sitescout-db
+    plan: free
+    region: singapore
+    databaseName: sitescout
+    user: sitescout
+    postgresMajorVersion: "17"

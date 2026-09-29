@@ -121,7 +121,29 @@ template (no LLM calls; `make demo ARGS=--llm` to let the configured provider wr
 6. The last submission rolls the study up into a **Catchment Summary**, which triggers
    **evaluation v2**; Meera sees *What changed: v1 → v2* on the property.
 
-### 1.6 Tests
+### 1.6 Deploy (Render)
+
+One Docker web service ([`deploy/Dockerfile`](deploy/Dockerfile): nginx serves the built frontend and
+proxies `/api` to FastAPI; the job worker runs alongside) plus Render Postgres with PostGIS, both in
+Singapore, described by [`render.yaml`](render.yaml). Same origin, so no CORS and no cross-service URLs.
+No LLM keys are deployed: narratives use the deterministic template.
+
+1. **Build the data** (locally, ~2 min): `make deploy-export` builds a clean database (schema, a fresh
+   snapshot, the demo story) in a throwaway project and dumps it to `data/processed/sitescout_deploy.dump`
+   (~24 MB; the ingest-only building tables are left out).
+2. **Create the services**: Render → *New* → *Blueprint* → this GitHub repo. It creates `sitescout`
+   (web) and `sitescout-db` (Postgres) and builds the image.
+3. **Load the data**: copy the database's *External Database URL* from Render, then
+   `DEPLOY_DATABASE_URL='<url>' make deploy-restore` (refuses a database that already has data).
+4. Open the service URL. On the free plan the service sleeps after 15 min idle (first request ~1 min),
+   jobs run while it's awake, uploaded photos don't survive a restart, and a free database expires
+   after 30 days.
+
+Rehearsed locally end to end (stand-in PostGIS, a `postgres://` URL and `PORT` as Render sets them):
+restore, migrations at start, sign-in, the map from the bundle, and a real analysis job processed
+by the in-container worker.
+
+### 1.7 Tests
 
 ```bash
 make test      # 227 tests, ~40 s, inside the api container. Never call a real LLM API.
@@ -435,8 +457,8 @@ The full log with measurements is [`docs/DECISIONS.md`](docs/DECISIONS.md). The 
   built; studies are per property.
 - **Capture photos** are not implemented (notes only); property photos are.
 - **Offline**: drafts and a send queue, not a full offline-first sync; the base map needs a network.
-- **No public deployment**: `make prod` is a production-style local run (nginx + static build); it
-  hasn't been deployed to a server, so there is no shared URL.
+- **Deployment is on free-tier infrastructure** (§1.6): cold starts after idle, ephemeral photo
+  storage, a 30-day database.
 - **Reassigning a unit mid-survey** is handled in code (captures stay) but not exercised by a test,
   because only one Survey Executive is seeded.
 - Pincode polygons are ~12 years old (Voronoi extents fill the gaps, labelled approximate).

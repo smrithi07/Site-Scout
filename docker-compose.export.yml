@@ -1,0 +1,7 @@
+# Used by scripts/export_db.sh: a throwaway project (its own volume) that can run next to the dev
+# stack, so no ports are published.
+services:
+  db:
+    ports: !reset []
+  api:
+    ports: !reset []

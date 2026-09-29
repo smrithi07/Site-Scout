@@ -1,0 +1,9 @@
+# Build context for deploy/Dockerfile (repository root). The raw data and local artefacts never
+# belong in an image; the deployed app reads its data from the hosted database.
+.git
+data/
+uploads/
+**/node_modules
+frontend/dist
+**/__pycache__
+.env
