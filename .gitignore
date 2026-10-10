@@ -11,3 +11,5 @@ uploads/
 .DS_Store
 .pytest_cache/
 .ruff_cache/
+# local AI session notes; they contain internal store data
+ai-sessions/
