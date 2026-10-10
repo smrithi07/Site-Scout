@@ -48,7 +48,6 @@ NS = uuid.UUID("0d3c9a62-51f4-4a8e-9b0e-6d2a7c4e1f58")
 MEERA, KARTHIK, DIVYA, ARJUN = 1, 2, 3, 4
 H = {uid: {"Authorization": f"Bearer {token_for(uid)}"} for uid in (MEERA, KARTHIK, DIVYA, ARJUN)}
 IST = timezone(timedelta(hours=5, minutes=30))
-A_STORE = (0.0, 0.0)
 PROPERTY_KEYS = [f"p{i}" for i in range(1, 8)]
 
 
@@ -103,12 +102,17 @@ class Story:
         return t
 
     # --- M2 -------------------------------------------------------------------------------------
-    def onboard(self, key: str, spot: tuple[float, float], task: dict | None, **fields) -> dict:
+    def onboard(self, key: str, spot: tuple[float, float], task: dict | None, allow_refusal=False, **fields) -> dict | None:
         body = {"client_id": cid(key), "lat": round(spot[0], 6), "lon": round(spot[1], 6), "gps_accuracy_m": 6,
                 "device_lat": round(spot[0] + 0.00005, 6), "device_lon": round(spot[1], 6),
                 "rent_unit": "per_month", "floor": "ground", "owner_name": "Owner (demo)",
                 "owner_phone": "+91 90000 00000", "task_id": task["id"] if task else None, **fields}
-        p = self.call("POST", "/properties", KARTHIK, body)
+        r = self.c.post("/properties", json=body, headers=H[KARTHIK])
+        if r.status_code == 422 and allow_refusal:
+            return None                                          # e.g. the pin fell in water: caller tries elsewhere
+        if r.status_code not in (200, 201):
+            raise SystemExit(f"POST /properties → {r.status_code}: {r.text[:400]}")
+        p = r.json()
         self.drain()                                              # evaluation v1
         p = self.call("GET", f"/properties/{p['id']}", MEERA)
         ev = p.get("evaluation") or {}
@@ -120,6 +124,17 @@ class Story:
 
     def note(self, p: dict, who: int, text_: str) -> None:
         self.call("POST", f"/properties/{p['id']}/notes", who, {"text": text_})
+
+    def stores_in_area(self) -> list[dict]:
+        """Operational Savomart stores inside the service area, read from the ingested snapshot. The
+        store list comes from the git-ignored Stores API file, so no store is hard-coded here."""
+        with engine.connect() as conn:
+            return [dict(r) for r in conn.execute(text("""
+                SELECT s.store_code, s.name, ST_Y(s.geom) AS lat, ST_X(s.geom) AS lon
+                FROM stores s JOIN service_areas a ON a.snapshot_id = s.snapshot_id
+                WHERE s.snapshot_id = (SELECT max(id) FROM data_snapshots WHERE status = 'ready')
+                  AND s.is_operational AND ST_Contains(a.geom, s.geom)
+                ORDER BY s.store_code""")).mappings()]
 
     # --- M3 -------------------------------------------------------------------------------------
     def request_study(self, p: dict, reason: str) -> dict:
@@ -201,9 +216,14 @@ class Story:
                           parking="limited", condition="fair")
         p5 = self.onboard("p5", (hp[1]["lat"], hp[1]["lon"]), t2, label=f"Side-street shop ({place} pocket)", monthly_rent=55000,
                           frontage_ft=12, visibility="fair", accessibility="fair")            # no area → Needs Info
-        p6 = self.onboard("p6", (A_STORE[0] + 0.0016, A_STORE[1] + 0.0007), None,
-                          label="Main road unit near a Savomart store", monthly_rent=48000, area_sqft=1200, frontage_ft=22,
-                          road_width_ft=40, visibility="good", accessibility="good", parking="limited")
+        for store in self.stores_in_area():                # ~200 m from the first store where that's a valid pin
+            p6 = self.onboard("p6", (store["lat"] + 0.0016, store["lon"] + 0.0007), None, allow_refusal=True,
+                              label="Main road unit near a Savomart store", monthly_rent=48000, area_sqft=1200,
+                              frontage_ft=22, road_width_ft=40, visibility="good", accessibility="good", parking="limited")
+            if p6:
+                break
+        else:
+            raise SystemExit("no operational Savomart store inside the service area — run make ingest")
         dup = self.onboard("p7", (hs[0]["lat"] + 0.00008, hs[0]["lon"]), t1, label="T Nagar corner shop",
                            monthly_rent=150000, area_sqft=1100)
         self.say(f"#{dup['id']} flagged as a possible duplicate of #{p1['id']} — for Karthik to resolve")
@@ -213,7 +233,7 @@ class Story:
         p2 = self.move(p2, "under_review", "Good frontage, close to the corner unit")
         p3 = self.move(p3, "under_review", "Worth a look — narrower frontage")
         p4 = self.move(p4, "under_review", "First site from the opportunity map")
-        p6 = self.move(p6, "rejected", "a Savomart store is ~200 m away — cannibalisation (hard flag)")
+        p6 = self.move(p6, "rejected", f"Savomart {store['name']} is ~200 m away — cannibalisation (hard flag)")
         self.call("POST", f"/properties/{p3['id']}/follow-ups", MEERA, {
             "kind": "photos", "message": "Please add photos of the frontage and the street from both directions.",
             "version": p3["version"]})

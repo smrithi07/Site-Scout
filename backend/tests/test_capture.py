@@ -48,8 +48,13 @@ def body(a, lane, **kw):
             "observations": OBS, "lat": lat, "lon": lon, "gps_accuracy_m": 8, "notes": "TEST capture", **kw}
 
 
+def yesterday_0900_ist() -> str:
+    """09:00 IST (morning band) yesterday: inside the 7-day draft window whenever the test runs."""
+    return (datetime.now(timezone.utc) - timedelta(days=1)).replace(hour=3, minute=30, second=0, microsecond=0).isoformat()
+
+
 def test_capture_is_saved_stamped_and_idempotent(client, assigned):
-    b = body(assigned, assigned["lanes"][0], captured_at=datetime(2026, 9, 29, 3, 30, tzinfo=timezone.utc).isoformat())
+    b = body(assigned, assigned["lanes"][0], captured_at=yesterday_0900_ist())
     r = client.post("/captures", json=b, headers=SE)
     assert r.status_code == 201, r.text
     c = r.json()

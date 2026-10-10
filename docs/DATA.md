@@ -93,15 +93,12 @@ curl -sS -X GET \
 `store_code`, `name`, `address`, `location_url`, `geocoordinates.{latitude,longitude}`,
 `is_operational`, `zone`.
 
-**What it returned**: 63 stores in zone `BLR` (Bengaluru), 11 in zone `CHN` (Chennai). The 11
-Chennai stores, with coordinates:
+**What it returned**: 63 stores in zone `BLR` (Bengaluru), 11 in zone `CHN` (Chennai). Store codes,
+names and coordinates are Savomart-internal, so they are **not committed**: they live only in the
+git-ignored `data/raw/stores/stores_<date>.json` and, after ingest, in the database's `stores` table.
 
-| store_code | name | lat | lon |
-|---|---|---|---|
-| *(11th store — paste of the list was cut off; re-run the ingest script and it'll be captured, no action needed)* | | | |
-
-**Design consequence — important**: three of these stores sit **west of the datameet polygon boundary at
-80.161 E** — i.e. plausibly outside the old-core service-area polygon, in the metro-fringe zone.
+**Design consequence — important**: three of the Chennai stores sit **west of the datameet
+polygon boundary** — i.e. plausibly outside the old-core service-area polygon, in the metro-fringe zone.
 This means:
 1. **Cannibalisation logic must query all stores near a site by geometry (radius), never
    filtered by "inside the service-area polygon."** A store just outside the boundary can still
@@ -140,7 +137,7 @@ building/landuse coverage check runs — don't decide it from the pincode-polygo
 
 ## Open items before Phase 1 can fully close
 
-1. ~~Verify the 11th Chennai store's `store_code`~~ — **closed in Phase 1**: (captured by the ingest; kept in the git-ignored store file).
+1. ~~Verify the 11th Chennai store's `store_code`~~ — **closed in Phase 1** (captured by the ingest; kept in the git-ignored store file).
 2. ~~Metro fringe in or out~~ — **out** (Phase 2 gate).
 3. ~~Bhuvan land-use cross-check~~ — **not needed** (Phase 2 gate: OSM mask validated on named sites).
 4. Confirm whether the census 2011 join (2008 155-ward map) is worth the ~2-3 hours of cleanup —

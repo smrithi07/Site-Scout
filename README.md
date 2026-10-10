@@ -472,20 +472,6 @@ notifications for assignments and follow-ups; a shareable decision pack per prop
 
 ---
 
-## 11. How AI tools were used
-
-- **Claude Code** was my pair-programmer throughout, one phase at a time ([`docs/PHASES.md`](docs/PHASES.md)):
-  turning the design into a phase plan, writing code and tests, running and debugging them,
-  benchmarking undecided choices (pocket formation, unit partitioning, map layer timing), and
-  drafting the docs, including this README. I set the design, reviewed every phase against its
-  checkpoint, and pushed back where results were wrong. For example, unit fragmentation led to the
-  partitioner rewrite, and a "competition improved" result that contradicted the survey led to the
-  "not like-for-like" caveat. Corrections are logged in [`docs/DECISIONS.md`](docs/DECISIONS.md)
-  (e.g. Flask → FastAPI, the Stores API's GET vs POST).
-- **In the product**, Gemini (and Groq as fallback) only **phrase** code-built fact sheets for area
-  reports and v1 → v2 diffs, behind the validator and template fallback in §7. No score, rating,
-  risk or number comes from a model.
-- API keys live only in the git-ignored `.env`; tests never call a real model.
 
 ---
 

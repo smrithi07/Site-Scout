@@ -15,7 +15,6 @@ from tests.conftest import headers, purge_scouting_test_data
 BDM, BDE = headers(Role.BD_MANAGER), headers(Role.BD_EXECUTIVE)
 CFG = {"queues": ["test"], "heartbeat_seconds": 1, "stale_after_seconds": 30, "max_attempts": 3}
 RANGANATHAN_ST = (13.0405, 80.2335)
-A_STORE = (13.11949, 0.0)   # an operational Savomart
 
 
 @pytest.fixture(autouse=True)
@@ -27,6 +26,17 @@ def cleanup():
 def drain() -> None:
     while run_once("w-test", CFG):
         pass
+
+
+def a_store() -> tuple[float, float]:
+    """An operational Savomart store inside the service area, read from the ingested snapshot (the
+    store list comes from the git-ignored Stores API file; no location is committed)."""
+    with engine.connect() as conn:
+        return tuple(conn.execute(text("""
+            SELECT ST_Y(s.geom), ST_X(s.geom) FROM stores s JOIN service_areas a USING (snapshot_id)
+            WHERE s.snapshot_id = (SELECT max(id) FROM data_snapshots WHERE status = 'ready')
+              AND s.is_operational AND ST_Contains(a.geom, s.geom)
+            ORDER BY s.store_code LIMIT 1""")).one())
 
 
 def onboard(client, lat=RANGANATHAN_ST[0], lon=RANGANATHAN_ST[1], **extra) -> dict:
@@ -67,7 +77,7 @@ def test_missing_rent_is_needs_info_never_a_guess(client):
 
 
 def test_store_next_door_is_a_hard_flag_that_caps_the_outcome(client):
-    ev = onboard(client, lat=A_STORE[0] + 0.0004, lon=A_STORE[1])["evaluation"]   # ~45 m away
+    ev = onboard(client, lat=a_store()[0] + 0.0004, lon=a_store()[1])["evaluation"]   # ~45 m away
     assert [f["code"] for f in ev["hard_flags"]] == ["store_too_close"]
     assert ev["risks"][0]["rule_id"] == "R-CANNIBAL" and ev["risks"][0]["severity"] == "high"
     assert ev["outcome"] != "Strong Fit"
@@ -93,7 +103,7 @@ def test_a_stale_stores_cache_excludes_cannibalisation_and_says_why(client, monk
         assert area["status"] == "scored"                  # 15% missing is under the facts-only limit
         assert sum(f["effective_weight"] for f in area["factors"]) == pytest.approx(100, abs=0.2)
 
-        ev = onboard(client, lat=A_STORE[0] + 0.0004, lon=A_STORE[1])["evaluation"]
+        ev = onboard(client, lat=a_store()[0] + 0.0004, lon=a_store()[1])["evaluation"]
         can = next(f for f in ev["factors"] if f["factor"] == "cannibalisation")
         assert can["normalized"] is None and "45 days old" in (can.get("note") or "")
         assert [f["code"] for f in ev["hard_flags"]] == ["store_too_close"]

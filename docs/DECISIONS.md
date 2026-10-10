@@ -200,8 +200,8 @@ Land-use polygons (any class) cover 29.3% of GCC.
 
 **Reading**: (1) the mask works on OSM alone → Bhuvan adds nothing for masking. (2) The fringe has
 almost no building data. (3) **OSM building density is not a usable demand proxy in the four
-northern/southern zones**, which is where several of Savomart's existing
-stores are. Scored naively, these zones would look like low demand purely because of missing
+northern/southern zones**, which is where several of Savomart's
+existing stores are. Scored naively, these zones would look like low demand purely because of missing
 mapping.
 
 ### Phase 2 gate — decisions (signed off by the user)
